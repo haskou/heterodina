@@ -722,11 +722,10 @@ async function pollStatus(): Promise<void> {
   let busy = false;
   try {
     const s = await api.status();
-    const total = s.analysed + s.waiting;
     // A few tracks queued is the radio's own look-ahead, not the library.
     const analysing = s.waiting > 20;
     busy = s.indexing || analysing;
-    ui.busy.textContent = s.indexing ? t('indexing') : t('analysing', { done: s.analysed.toLocaleString(), total: total.toLocaleString() });
+    ui.busy.textContent = s.indexing ? t('indexing') : t('analysing', { left: s.waiting.toLocaleString() });
     ui.busy.hidden = !busy;
     if (wasIndexing && !s.indexing && !ui.startList.childElementCount) void loadSuggestions();
     wasIndexing = s.indexing;
