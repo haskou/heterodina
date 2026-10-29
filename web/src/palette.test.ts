@@ -47,3 +47,11 @@ test('rgbToHsl', () => {
   assert.deepEqual(rgbToHsl(255, 0, 0), { h: 0, s: 1, l: 0.5 });
   assert.equal(Math.round(rgbToHsl(0, 0, 255).h), 240);
 });
+
+test('black-and-white cover with a faint JPEG tint: grey background, no orange', () => {
+  // Near-black and near-white with a warm tint: huge HSL saturation, almost no colour.
+  const t = themeFromPixels(pixels([[18, 12, 10], 500], [[250, 244, 238], 350], [[120, 116, 112], 150]));
+  const bg = parse(t.bg);
+  assert.ok(bg.s <= 0.05, `bg ${t.bg}`);
+  assert.ok(parse(t.accent).s <= 0.15, `accent ${t.accent}`);
+});

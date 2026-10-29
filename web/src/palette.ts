@@ -35,23 +35,25 @@ export function themeFromPixels(rgba: Uint8ClampedArray): Theme {
   const clusters = kmeans(rgba, 6);
   if (!clusters.length) return DEFAULT_THEME;
   const total = clusters.reduce((n, c) => n + c.count, 0);
-  const colours = clusters.map((c) => ({ ...rgbToHsl(c.r, c.g, c.b), share: c.count / total }));
+  // Colourfulness is chroma (max - min channel), not HSL saturation: near
+  // black or white a faint JPEG tint has a huge saturation but no colour.
+  const colours = clusters.map((c) => ({ ...rgbToHsl(c.r, c.g, c.b), chroma: (Math.max(c.r, c.g, c.b) - Math.min(c.r, c.g, c.b)) / 255, share: c.count / total }));
 
   // Main colour: large and colourful wins; near-black/white only if nothing else is there.
-  const score = (c: Hsl & { share: number }): number => {
+  const score = (c: (typeof colours)[number]): number => {
     const extreme = c.l < 0.07 || c.l > 0.93;
-    return c.share * (0.25 + c.s) * (extreme ? 0.15 : 1);
+    return c.share * (0.25 + 2 * c.chroma) * (extreme ? 0.15 : 1);
   };
   const main = [...colours].sort((a, b) => score(b) - score(a))[0]!;
-  const neutral = main.s < 0.12;
+  const neutral = main.chroma < 0.1;
 
   const bgL = clamp(main.l, 0.14, 0.3);
-  const bgS = neutral ? Math.min(main.s, 0.08) : clamp(main.s, 0.25, 0.6);
+  const bgS = neutral ? Math.min(main.s, 0.04) : clamp(main.s, 0.25, 0.6);
   const bg: Hsl = { h: main.h, s: bgS, l: bgL };
 
   // Accent: a second, clearly different and lively colour; else a light tint of the main hue.
   const others = colours
-    .filter((c) => c !== main && c.s > 0.25 && c.l > 0.25 && c.l < 0.9 && c.share > 0.03)
+    .filter((c) => c !== main && c.s > 0.25 && c.chroma > 0.15 && c.l > 0.25 && c.l < 0.9 && c.share > 0.03)
     .filter((c) => hueDistance(c.h, main.h) > 30 || Math.abs(c.l - main.l) > 0.3)
     .sort((a, b) => b.share * b.s - a.share * a.s);
   const pick = others[0];
