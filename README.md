@@ -4,6 +4,10 @@
 
 Pick one song, or one of a few suggested starting points, and Heterodina keeps the music going. Every next track is chosen to fit what is playing, and it is mixed in as a DJ would. There are no settings, no queue to manage and no playlists to build.
 
+**Why it exists.** Plexamp doesn't run in a browser, and Plex's own shuffle and radio feel like a dice roll. Spotify gets the experience right: you press play once and it keeps going, every song flowing into the next. But it doesn't have your library, your FLACs or your stars. Heterodina mixes the two: Spotify's endless, DJ-mixed listening on top of your own Plex library.
+
+**Why the name.** A heterodyne mixes two signals, and out comes a third frequency that neither of them had on its own. Heterodina does the same: Plex and Spotify go in, and something else comes out.
+
 [![Now playing: big cover, colours taken from the artwork, the radio's universe under the stars](docs/screenshots/playing.jpg)](docs/screenshots/playing.jpg)
 
 | Varied starting points | Search in romaji | The radio's universe: click the line under the stars (or press `U`) to see which albums it draws from, and remove or add some |
