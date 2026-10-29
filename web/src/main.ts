@@ -48,6 +48,7 @@ const ui = {
   dur: $('dur'),
   volume: $<HTMLInputElement>('volume'),
   toast: $('toast'),
+  busy: $('busy'),
 };
 
 const queue = new Queue();
@@ -706,3 +707,28 @@ function toast(message: string): void {
   window.clearTimeout(toastTimer);
   toastTimer = window.setTimeout(() => (ui.toast.hidden = true), 3500);
 }
+
+// --- what the server is busy with: the first index, then tempo analysis ---
+
+const STATUS_BUSY_MS = 4000;
+const STATUS_IDLE_MS = 30000;
+let wasIndexing = false;
+
+async function pollStatus(): Promise<void> {
+  let busy = false;
+  try {
+    const s = await api.status();
+    const total = s.analysed + s.waiting;
+    // A few tracks queued is the radio's own look-ahead, not the library.
+    const analysing = s.waiting > 20;
+    busy = s.indexing || analysing;
+    ui.busy.textContent = s.indexing ? t('indexing') : t('analysing', { done: s.analysed.toLocaleString(), total: total.toLocaleString() });
+    ui.busy.hidden = !busy;
+    if (wasIndexing && !s.indexing && !ui.startList.childElementCount) void loadSuggestions();
+    wasIndexing = s.indexing;
+  } catch {
+    ui.busy.hidden = true;
+  }
+  window.setTimeout(() => void pollStatus(), busy ? STATUS_BUSY_MS : STATUS_IDLE_MS);
+}
+void pollStatus();

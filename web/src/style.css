@@ -700,3 +700,41 @@ input[type='range'] {
   backdrop-filter: blur(16px);
   border: 1px solid var(--line);
 }
+
+/* --- server busy notice --- */
+
+.busy {
+  position: fixed;
+  bottom: calc(var(--bar-h) + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100vw - 32px);
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--glass);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 13px;
+  pointer-events: none;
+}
+
+/* A toast takes the same spot while it shows. */
+.toast:not([hidden]) ~ .busy {
+  visibility: hidden;
+}
+
+.busy::before {
+  content: '';
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}

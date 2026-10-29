@@ -1,4 +1,4 @@
-import type { Playlist, RadioContext, RadioPick, Track } from '../../shared/types.ts';
+import type { Playlist, RadioContext, RadioPick, ServerStatus, Track } from '../../shared/types.ts';
 
 async function getJson<T>(url: string, signal?: AbortSignal): Promise<T> {
   const res = await fetch(url, signal ? { signal } : {});
@@ -10,6 +10,7 @@ async function getJson<T>(url: string, signal?: AbortSignal): Promise<T> {
 const within = (playlist: string | null): string => (playlist ? `&playlist=${playlist}` : '');
 
 export const api = {
+  status: () => getJson<ServerStatus>('/api/status'),
   playlists: () => getJson<Playlist[]>('/api/playlists'),
   /** Varied starting points from the current source. */
   suggestions: (playlist: string | null) => getJson<Track[]>(`/api/suggestions?${within(playlist).slice(1)}`),

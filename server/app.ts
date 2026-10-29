@@ -6,6 +6,8 @@ import type { ReadableStream as WebReadableStream } from 'node:stream/web';
 import { isArtPath, type Library } from './library.ts';
 import type { PlexClient } from './plex.ts';
 import type { Radio } from './radio.ts';
+import type { ServerStatus } from '../shared/types.ts';
+import type { TempoAnalyzer } from './tempo.ts';
 
 const ID = /^\d+$/;
 
@@ -25,11 +27,13 @@ export interface AppDeps {
   plex: PlexClient;
   library: Library;
   radio: Radio;
+  /** Background tempo analysis, reported by /api/status. */
+  tempo?: TempoAnalyzer;
   /** Built front-end to serve in production; skipped when absent. */
   staticDir?: string;
 }
 
-export function createApp({ plex, library, radio, staticDir }: AppDeps): Server {
+export function createApp({ plex, library, radio, tempo, staticDir }: AppDeps): Server {
   return createServer((req, res) => {
     handle(req, res).catch((err: unknown) => {
       // Log the message only: Plex errors never contain the token, but
@@ -52,6 +56,10 @@ export function createApp({ plex, library, radio, staticDir }: AppDeps): Server 
     if (req.method !== 'GET' && req.method !== 'HEAD') return sendJson(res, 405, { error: 'method not allowed' });
 
     if (path === '/api/health') return sendJson(res, 200, { ok: true });
+    if (path === '/api/status') {
+      const status: ServerStatus = { indexing: !library.indexed, ...(tempo?.progress() ?? { analysed: 0, waiting: 0 }) };
+      return sendJson(res, 200, status);
+    }
 
     if (path === '/api/playlists') return sendJson(res, 200, await library.playlists());
 

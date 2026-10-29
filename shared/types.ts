@@ -84,3 +84,12 @@ export interface Playlist {
   title: string;
   count: number;
 }
+
+/** What the server is busy with, for the "processing your library" notice. */
+export interface ServerStatus {
+  /** True until the first library index is built (radio and suggestions need it). */
+  indexing: boolean;
+  /** Tracks with tempo analysed, and tracks still waiting for it. */
+  analysed: number;
+  waiting: number;
+}

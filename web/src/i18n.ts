@@ -28,6 +28,8 @@ const en = {
   radioFailed: 'The radio could not pick the next song',
   universeFailed: 'Could not correct the universe',
   searchFailed: 'Search failed',
+  indexing: 'Processing your library… the radio starts once it is done',
+  analysing: 'Analysing your library: {done} of {total} songs',
 };
 
 export type MessageKey = keyof typeof en;
@@ -60,6 +62,8 @@ const es: Messages = {
   radioFailed: 'La radio no pudo elegir la siguiente canción',
   universeFailed: 'No se pudo corregir el universo',
   searchFailed: 'La búsqueda falló',
+  indexing: 'Procesando la biblioteca… la radio estará lista al terminar',
+  analysing: 'Analizando la biblioteca: {done} de {total} canciones',
 };
 
 const ja: Messages = {
@@ -89,6 +93,8 @@ const ja: Messages = {
   radioFailed: '次の曲を選べませんでした',
   universeFailed: '世界観を修正できませんでした',
   searchFailed: '検索に失敗しました',
+  indexing: 'ライブラリを処理中… 完了後にラジオを開始できます',
+  analysing: 'ライブラリを分析中: {done} / {total} 曲',
 };
 
 const MESSAGES = { en, es, ja } satisfies Record<string, Messages>;

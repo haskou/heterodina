@@ -144,6 +144,11 @@ export class Library {
   }
 
   /** Loads every track into `index` for romaji-aware local search. Returns the track count. */
+  /** True once the first index is built. */
+  get indexed(): boolean {
+    return this.#index !== null;
+  }
+
   async buildIndex(index: SearchIndex): Promise<number> {
     const section = await this.sectionId();
     const [trackMetas, albumMetas] = await Promise.all([this.#listAll(section, 10), this.#listAll(section, 9)]);
