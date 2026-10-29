@@ -52,6 +52,7 @@ const ui = {
 
 const queue = new Queue();
 
+const player = new BroadcastChannel('heterodina-player');
 const engine = new AudioEngine(queue, {
   state(state, track) {
     document.body.classList.toggle('playing', state === 'playing');
@@ -59,6 +60,7 @@ const engine = new AudioEngine(queue, {
     ui.play.disabled = !track;
     ui.seek.disabled = state === 'idle' || state === 'loading';
     media.playing(state === 'playing');
+    if (state === 'playing') player.postMessage('playing');
   },
   trackChanged(track) {
     show(track);
@@ -71,6 +73,9 @@ const engine = new AudioEngine(queue, {
     toast(t('cantPlay', { title: track.title }));
   },
 });
+
+// One player at a time: a tab that starts playing pauses the others.
+player.onmessage = () => void engine.pause();
 
 if (import.meta.env.DEV) Object.assign(window, { heterodina: { engine, queue, api } });
 
