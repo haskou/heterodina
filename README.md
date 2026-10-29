@@ -6,19 +6,19 @@ Pick one song, or one of a few suggested starting points, and Heterodina keeps t
 
 [![Now playing: big cover, colours taken from the artwork, the radio's universe under the stars](docs/screenshots/playing.jpg)](docs/screenshots/playing.jpg)
 
-| Varied starting points | Search in romaji | The radio's universe: click “Radio · …” under the stars (or press `U`) to see which albums it draws from, and remove or add some |
+| Varied starting points | Search in romaji | The radio's universe: click the line under the stars (or press `U`) to see which albums it draws from, and remove or add some |
 |---|---|---|
 | [![Six suggested songs from different corners of the library](docs/screenshots/start.jpg)](docs/screenshots/start.jpg) | [![Typing "tokyo" finds 東京 and トーキョー](docs/screenshots/search.jpg)](docs/screenshots/search.jpg) | [![Albums the radio draws from, with add and remove controls](docs/screenshots/universe.jpg)](docs/screenshots/universe.jpg) |
 
 ## Why Heterodina
 
-- **It knows what your music belongs to.** Start from a game soundtrack and you get that soundtrack, its composers, the jazz and rock arrangements of it, and the albums around it, not "other music that sounds vaguely similar". It works this out from your own Plex metadata. You can see it ("Radio · …") and correct it in two clicks.
+- **It knows what your music belongs to.** Start from a game soundtrack and you get that soundtrack, its composers, the jazz and rock arrangements of it, and the albums around it, not "other music that sounds vaguely similar". It works this out from your own Plex metadata. You can see it (under the stars, next to the file format) and correct it in two clicks.
 - **Transitions that sound DJ-mixed, not faded, and fully automatic.**
   - When tempos are close, both songs are time-stretched (pitch kept) onto one tempo that glides from one to the other, so beats and bars stay locked for up to 16 bars.
   - It picks where to mix: bar lines near the end of one song and the start of the next where timbre and harmony match, landing on a drop or a new section when it can.
   - Every hand-over gets its own style, chosen from tempo, key and energy: long blends with a bass swap, three-band filter waves, noise risers and loop rolls into louder songs, reverb washes when keys clash, echo or turntable-brake exits when tempos are far apart, and the beat mix, sound bomb, beat storm and signature styles of Spotify's mixing patent.
   - Consecutive album tracks stay gapless, and every track is loudness-normalized.
-- **Original quality, no transcoding.** Your files reach the browser as they are, so FLAC stays lossless at its own bit depth: no re-encoding to a streaming bitrate and no Plex transcoder in the playback path. The only processing is the loudness gain and, during a hand-over, the few bars being mixed.
+- **Original quality, no transcoding.** Your files reach the browser as they are, so FLAC stays lossless at its own bit depth: no re-encoding to a streaming bitrate and no Plex transcoder in the playback path. The player shows what each file is, such as `FLAC 24/96` or `MP3 320 kbps`. The only processing is the loudness gain and, during a hand-over, the few bars being mixed.
 - **The next song fits the last one.**
   - The radio follows the mood of what just played, so a station drifts naturally instead of jumping around.
   - It avoids slamming a loud ending into a quiet intro.
@@ -95,7 +95,7 @@ The interface follows the browser's language: English, Spanish or Japanese, with
 | `←` `→` | ±10 s |
 | `↑` `↓` | Volume |
 | `1`–`5`, `0` | Star rating in Plex (`0` clears it) |
-| `U` | Show and correct the radio's universe (or click "Radio · …" under the stars) |
+| `U` | Show and correct the radio's universe (or click the line under the stars) |
 
 System media keys work too.
 
