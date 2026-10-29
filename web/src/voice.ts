@@ -22,6 +22,8 @@ export interface Voice {
   readonly buffer: AudioBuffer | null;
   /** Whether sample-exact timing is available (needed for gapless). */
   readonly exact: boolean;
+  /** Normalization gain applied to this track. */
+  readonly level: number;
   start(when: number, offset: number): void;
   /** Current position in the track, in seconds. */
   position(): number;
@@ -37,6 +39,21 @@ export interface Voice {
   onEnded: (() => void) | null;
 }
 
+/**
+ * A rendered transition that a BufferVoice plays before the rest of its
+ * own track: from rendered time `from` to `to`, then the track itself from
+ * `trackAt(to)`, with a short overlap so the splice never clicks.
+ */
+export interface Intro {
+  buffer: AudioBuffer;
+  from: number;
+  to: number;
+  /** Track time heard at rendered time t. */
+  trackAt: (t: number) => number;
+  /** Overlap at each splice (s). */
+  splice: number;
+}
+
 abstract class BaseVoice {
   readonly track: Track;
   readonly fade: GainNode;
@@ -45,6 +62,10 @@ abstract class BaseVoice {
   protected readonly norm: GainNode;
   onEnded: (() => void) | null = null;
   protected disposed = false;
+
+  get level(): number {
+    return this.norm.gain.value;
+  }
 
   constructor(ctx: AudioContext, destination: AudioNode, track: Track, normGain: number) {
     this.ctx = ctx;
@@ -88,6 +109,10 @@ export class BufferVoice extends BaseVoice implements Voice {
   #t0 = 0;
   #offset = 0;
   #started = false;
+  #intro: Intro | null = null;
+  #introSource: AudioBufferSourceNode | null = null;
+  /** Context time at which the intro's `from` plays. */
+  #introAt = 0;
 
   constructor(ctx: AudioContext, destination: AudioNode, track: Track, normGain: number, buffer: AudioBuffer) {
     super(ctx, destination, track, normGain);
@@ -98,18 +123,44 @@ export class BufferVoice extends BaseVoice implements Voice {
     return this.#buffer.duration;
   }
 
-  start(when: number, offset: number): void {
-    this.#started = true;
-    this.#play(when, offset, false);
+  /** Plays `intro` first on the next start(); the start offset is then ignored. */
+  setIntro(intro: Intro | null): void {
+    this.#intro = intro;
   }
 
-  #play(when: number, offset: number, declickIn: boolean): void {
+  start(when: number, offset: number): void {
+    this.#started = true;
+    const intro = this.#intro;
+    if (!intro) return this.#play(when, offset, false);
+    // Render first, then the track from where the render leaves it. Both
+    // are scheduled now, so the splice is sample-exact; the two overlap by
+    // `splice` with linear ramps (same material on both sides).
+    const source = this.ctx.createBufferSource();
+    source.buffer = intro.buffer;
+    const gain = this.ctx.createGain();
+    const length = intro.to - intro.from;
+    const end = when + length;
+    gain.gain.setValueAtTime(0, when);
+    gain.gain.linearRampToValueAtTime(1, when + intro.splice);
+    gain.gain.setValueAtTime(1, end - intro.splice);
+    gain.gain.linearRampToValueAtTime(0, end);
+    source.connect(gain).connect(this.norm);
+    source.start(when, intro.from);
+    stopQuietly(source, end + 0.01);
+    source.onended = () => gain.disconnect();
+    this.#introSource = source;
+    this.#introAt = when;
+    const resume = intro.trackAt(intro.to - intro.splice);
+    this.#play(end - intro.splice, resume, true, intro.splice);
+  }
+
+  #play(when: number, offset: number, declickIn: boolean, ramp = DECLICK): void {
     const source = this.ctx.createBufferSource();
     source.buffer = this.#buffer;
     const gain = this.ctx.createGain();
     if (declickIn) {
       gain.gain.setValueAtTime(0, when);
-      gain.gain.linearRampToValueAtTime(1, when + DECLICK);
+      gain.gain.linearRampToValueAtTime(1, when + ramp);
     }
     source.connect(gain).connect(this.norm);
     source.start(when, offset);
@@ -126,7 +177,13 @@ export class BufferVoice extends BaseVoice implements Voice {
 
   position(): number {
     if (!this.#started) return this.#offset;
-    return Math.min(Math.max(this.ctx.currentTime - this.#t0, 0), this.duration);
+    const now = this.ctx.currentTime;
+    const intro = this.#intro;
+    if (this.#introSource && intro && now < this.#t0 + this.#offset) {
+      // Inside the rendered transition: where the track's own music is.
+      return Math.min(Math.max(intro.trackAt(intro.from + now - this.#introAt), 0), this.duration);
+    }
+    return Math.min(Math.max(now - this.#t0, 0), this.duration);
   }
 
   timeAt(t: number): number {
@@ -135,6 +192,7 @@ export class BufferVoice extends BaseVoice implements Voice {
 
   seek(offset: number): void {
     if (!this.#source || !this.#sourceGain) return;
+    this.#stopIntro();
     const old = this.#source;
     const oldGain = this.#sourceGain;
     const now = this.ctx.currentTime;
@@ -164,8 +222,17 @@ export class BufferVoice extends BaseVoice implements Voice {
     } else finish();
   }
 
+  #stopIntro(): void {
+    if (!this.#introSource) return;
+    this.#introSource.onended = null;
+    stopQuietly(this.#introSource);
+    this.#introSource.disconnect();
+    this.#introSource = null;
+  }
+
   dispose(): void {
     if (this.disposed) return;
+    this.#stopIntro();
     if (this.#source) {
       this.#source.onended = null;
       stopQuietly(this.#source);

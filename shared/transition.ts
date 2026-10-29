@@ -12,7 +12,8 @@ export interface Fade {
 }
 
 export interface TransitionPlan {
-  kind: 'gapless' | 'crossfade' | 'skip';
+  /** 'mix': a rendered, beat-matched transition plays in between (web/src/mixer.ts). */
+  kind: 'gapless' | 'crossfade' | 'skip' | 'mix';
   /** Outgoing-track time at which the incoming track starts sounding. */
   start: number;
   /** Where in the incoming file playback begins (skips leading silence). */

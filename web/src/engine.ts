@@ -15,10 +15,13 @@ import {
   type TransitionPlan,
 } from '../../shared/transition.ts';
 import { beatGrid, beatShift, type BeatGrid } from '../../shared/beat.ts';
+import { beatFeatures, type BeatFeatures, type Key } from '../../shared/features.ts';
+import { MIN_MIX_CONFIDENCE, planMix, type Side } from '../../shared/mix.ts';
 import type { Track } from '../../shared/types.ts';
 import { api } from './api.ts';
 import { ClockTimers } from './clock.ts';
 import { normalizationGain, volumeCurve } from './loudness.ts';
+import { RENDER_MARGIN_S, renderMix, SPLICE_S } from './mixer.ts';
 import { BufferVoice, StreamVoice, type Voice } from './voice.ts';
 
 export type PlayState = 'idle' | 'loading' | 'playing' | 'paused';
@@ -70,6 +73,8 @@ export class AudioEngine {
   /** Bumped by every manual switch so stale async work bails out. */
   #switchToken = 0;
   #prepareToken = 0;
+  /** The transition being prepared (loading, analysing, rendering), so a queue change doesn't start a second one. */
+  #preparing: { from: Voice; trackId: string } | null = null;
 
   constructor(queue: QueueSource, listener: EngineListener) {
     this.#queue = queue;
@@ -148,6 +153,9 @@ export class AudioEngine {
     this.#fading.clear();
     resetTransition(cur, this.#ctx.currentTime);
     cur.seek(seconds);
+    // Whatever was being prepared was planned from the old position.
+    this.#prepareToken++;
+    this.#preparing = null;
     void this.#prepareNext();
   }
 
@@ -203,7 +211,17 @@ export class AudioEngine {
     const cur = this.#current;
     const track = this.#queue.peek();
     if (!cur || !track || this.#next) return;
+    if (this.#preparing?.from === cur && this.#preparing.trackId === track.id) return;
     const token = ++this.#prepareToken;
+    this.#preparing = { from: cur, trackId: track.id };
+    try {
+      await this.#prepare(cur, track, token);
+    } finally {
+      if (token === this.#prepareToken) this.#preparing = null;
+    }
+  }
+
+  async #prepare(cur: Voice, track: Track, token: number): Promise<void> {
     let voice: Voice;
     try {
       const full = await this.#detail(track);
@@ -221,7 +239,24 @@ export class AudioEngine {
     }
     const gapless = cur.exact && voice.exact && isContiguous(cur.track, voice.track);
     const out = profileOf(cur.track);
-    const planned = gapless ? planGapless(out) : alignToBeat(planCrossfade(out, profileOf(voice.track)), cur, voice);
+    let mixed: TransitionPlan | null = null;
+    if (!gapless) {
+      try {
+        mixed = await this.#mix(cur, voice);
+      } catch (err) {
+        console.error('[transition] mix failed, crossfading instead', err);
+      }
+      if (token !== this.#prepareToken || cur !== this.#current || this.#next) {
+        voice.dispose();
+        return;
+      }
+    }
+    // Rendering took a while: a mix whose splice has already passed can't be used.
+    if (mixed && mixed.start < cur.position() + LEAD) {
+      if (voice instanceof BufferVoice) voice.setIntro(null);
+      mixed = null;
+    }
+    const planned = gapless ? planGapless(out) : (mixed ?? alignToBeat(planCrossfade(out, profileOf(voice.track)), cur, voice));
     const plan = fitPlan(planned, cur.position() + LEAD);
     try {
       this.#apply(cur, voice, cur.timeAt(plan.start), plan);
@@ -229,6 +264,55 @@ export class AudioEngine {
       // Nothing was started; the end of the track falls back to a cut.
       console.error('[transition] could not schedule', err);
     }
+  }
+
+  /**
+   * Beat-matched transition, rendered into `to` as an intro: null when the
+   * tempos can't lock or it is too late to place one.
+   */
+  async #mix(from: Voice, to: Voice): Promise<TransitionPlan | null> {
+    if (!from.buffer || !to.buffer || !(to instanceof BufferVoice)) return null;
+    const out = profileOf(from.track);
+    const inc = profileOf(to.track);
+    // The outgoing track's last quarter (plus room for a 16-bar window), the incoming one's first fifth (plus the same).
+    const sideA = sideOf(from.buffer, Math.max(out.leadIn, Math.min(OUT_REGION * out.duration, out.audioEnd - EDGE_S) - MIX_CONTEXT_S), out.audioEnd, [
+      out.audioEnd - BEAT_EDGE_S,
+      out.audioEnd,
+    ]);
+    const sideB = sideOf(to.buffer, inc.leadIn, Math.min(inc.audioEnd, IN_REGION * inc.duration + MIX_CONTEXT_S), [inc.leadIn, inc.leadIn + BEAT_EDGE_S]);
+    const gridA = sideA.grid;
+    const gridB = sideB.grid;
+    const levels = {
+      outEnd: levelDb(from.buffer, out.audioEnd - EDGE_S, out.audioEnd, from.level),
+      inStart: levelDb(to.buffer, inc.leadIn, inc.leadIn + EDGE_S, to.level),
+    };
+    const plan = planMix(out, inc, sideA, sideB, levels);
+    if (import.meta.env.DEV) {
+      const bpm = (g: BeatGrid | null): string => (g ? (60 / g.period).toFixed(1) : '?');
+      console.debug(
+        `[transition] ${bpm(gridA)} -> ${bpm(gridB)} BPM, edges ${levels.outEnd.toFixed(1)} -> ${levels.inStart.toFixed(1)} dB:`,
+        plan ? `${plan.style}${plan.locked ? ' (beat-matched)' : ''}${plan.bassOnDrop ? ', bass on the drop' : ''}, ${plan.beats / 4} bars, ${plan.window.toFixed(1)} s` : 'crossfade',
+        sideA.features && sideB.features ? `keys ${keyName(sideA.features.key)} -> ${keyName(sideB.features.key)}` : '',
+      );
+    }
+    if (!plan) return null;
+    // The splice into the render: the outgoing track hands over this early.
+    const start = plan.cueA - plan.pre + RENDER_MARGIN_S;
+    if (start < from.position() + LEAD + 1) return null;
+    const t0 = performance.now();
+    const rendered = await renderMix(from.buffer, to.buffer, plan, from.level, to.level);
+    if (import.meta.env.DEV) console.debug(`[transition] rendered in ${Math.round(performance.now() - t0)} ms`);
+    const end = rendered.buffer.duration - RENDER_MARGIN_S;
+    to.setIntro({ buffer: rendered.buffer, from: RENDER_MARGIN_S, to: end, trackAt: rendered.incomingAt, splice: SPLICE_S });
+    return {
+      kind: 'mix',
+      start,
+      inOffset: 0,
+      outFade: null,
+      inFade: null,
+      outStop: start + SPLICE_S,
+      bassSwap: null,
+    };
   }
 
   /** Schedules `plan`: `voice` starts at context time `when` while `from` fades and stops. */
@@ -239,6 +323,14 @@ export class AudioEngine {
         automate(voice.fade, 'in', when + (plan.inFade.at - plan.inOffset), plan.inFade.duration);
       }
       if (plan.outFade) automate(from.fade, 'out', from.timeAt(plan.outFade.at), plan.outFade.duration);
+      if (plan.kind === 'mix') {
+        // The render starts with the outgoing track itself: a short linear
+        // overlap (same material on both sides) hands over to it.
+        const g = from.fade.gain;
+        holdFrom(g, when);
+        g.setValueAtTime(1, when);
+        g.linearRampToValueAtTime(0, when + SPLICE_S);
+      }
       if (plan.bassSwap) {
         const at = from.timeAt(plan.bassSwap.at);
         swapBass(voice.bass, at, plan.bassSwap.duration, 'in');
@@ -312,6 +404,7 @@ export class AudioEngine {
     this.#next = null;
     next.cancelTimers();
     next.voice.dispose();
+    if (next.voice instanceof BufferVoice) next.voice.setIntro(null);
     resetTransition(next.from, this.#ctx.currentTime);
     if (next.from === this.#current) this.#watchEnd(next.from);
   }
@@ -424,6 +517,58 @@ function swapBass(filter: BiquadFilterNode, at: number, duration: number, shape:
   p.setValueAtTime(from, now);
   p.setValueAtTime(from, begin);
   p.linearRampToValueAtTime(to, begin + duration);
+}
+
+/** Seconds analysed beyond each cue region, so a 16-bar window fits. */
+const MIX_CONTEXT_S = 32;
+/** Bittner et al.: cue regions are the outgoing track's last quarter and the incoming one's first fifth. */
+const OUT_REGION = 0.75;
+const IN_REGION = 0.2;
+
+/** Seconds next to the edge that the beat falls back to when the whole region has none steady enough. */
+const BEAT_EDGE_S = 20;
+
+/**
+ * Beat grid and beat-by-beat features of buffer[from..to). A long region
+ * can hold beatless passages that blur the beat: then the grid comes from
+ * `edge` alone (where the tracks actually meet).
+ */
+function sideOf(buffer: AudioBuffer, from: number, to: number, edge: [number, number]): Side {
+  const rate = buffer.sampleRate;
+  const a = Math.max(0, Math.floor(from * rate));
+  const b = Math.min(buffer.length, Math.floor(to * rate));
+  if (b - a < rate * 6) return { grid: null, features: null };
+  const mono = new Float32Array(b - a);
+  for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+    const data = buffer.getChannelData(ch).subarray(a, b);
+    for (let i = 0; i < mono.length; i++) mono[i] = (mono[i] ?? 0) + (data[i] ?? 0) / buffer.numberOfChannels;
+  }
+  const whole = beatGrid(mono, rate, a / rate);
+  const grid = whole && whole.confidence >= MIN_MIX_CONFIDENCE ? whole : (gridOf(buffer, edge[0], edge[1]) ?? whole);
+  const features: BeatFeatures | null = grid ? beatFeatures(mono, rate, a / rate, grid) : null;
+  return { grid, features };
+}
+
+const NOTES = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
+const keyName = (k: Key): string => `${NOTES[k.root]}${k.minor ? 'm' : ''}`;
+/** Seconds of each edge whose loudness sets the mix's style. */
+const EDGE_S = 10;
+
+/** RMS level of buffer[from..to) after `gain`, in dB. */
+function levelDb(buffer: AudioBuffer, from: number, to: number, gain: number): number {
+  const rate = buffer.sampleRate;
+  const a = Math.max(0, Math.floor(from * rate));
+  const b = Math.min(buffer.length, Math.floor(to * rate));
+  let sum = 0;
+  let n = 0;
+  for (let c = 0; c < buffer.numberOfChannels; c++) {
+    const d = buffer.getChannelData(c);
+    for (let i = a; i < b; i += 4) {
+      sum += (d[i] ?? 0) ** 2;
+      n++;
+    }
+  }
+  return 10 * Math.log10((sum / Math.max(n, 1)) * gain * gain + 1e-12);
 }
 
 /** Seconds of steady beat looked at on each side of a blend. */
