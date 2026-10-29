@@ -10,13 +10,14 @@ export interface Config {
   port: number;
 }
 
+/** Variables already in the environment win; `.env` only fills the gaps, if it exists. */
 export function loadConfig(envFile = '.env'): Config {
   if (existsSync(envFile)) process.loadEnvFile(envFile);
   const env = process.env;
   const plexToken = env.PLEX_TOKEN?.trim();
   const plexUrl = env.PLEX_URL?.trim();
-  if (!plexToken) throw new Error('PLEX_TOKEN missing (set it in .env)');
-  if (!plexUrl) throw new Error('PLEX_URL missing (set it in .env)');
+  if (!plexToken) throw new Error('PLEX_TOKEN missing (set it in the environment or in .env)');
+  if (!plexUrl) throw new Error('PLEX_URL missing (set it in the environment or in .env)');
   return {
     plexUrl: plexUrl.replace(/\/+$/, ''),
     plexToken,
