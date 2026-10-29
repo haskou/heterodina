@@ -454,6 +454,8 @@ export interface Controls {
 const NEUTRAL: Controls = { vol: 1, low: 1, mid: 1, high: 1, lp: 1, hp: 1, echo: 0, verb: 0, bassEcho: 0, flange: 0, riser: 0 };
 
 const clamp01 = (v: number): number => Math.min(Math.max(v, 0), 1);
+/** Smoothstep: same ends, no corner where it starts or stops moving. */
+const smooth = (v: number): number => v * v * (3 - 2 * v);
 /** 0 before a, 1 after b, linear between. */
 const up = (u: number, a: number, b: number): number => clamp01((u - a) / (b - a));
 const down = (u: number, a: number, b: number): number => 1 - up(u, a, b);
@@ -534,5 +536,8 @@ export function controls(style: MixStyle, side: 'out' | 'in', u: number, beat: n
   const c = { ...NEUTRAL };
   for (const lane of RECIPES[style][side]) Object.assign(c, lane(x, beat));
   if (bassOnDrop) Object.assign(c, endSwap[side === 'out' ? 0 : 1](x, beat));
+  // Filters ease in and out of a sweep: a linear start is heard as a jolt.
+  c.lp = smooth(c.lp);
+  c.hp = smooth(c.hp);
   return c;
 }

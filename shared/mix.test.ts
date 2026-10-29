@@ -189,3 +189,20 @@ test('never both basses up at once', () => {
     }
   }
 });
+
+test('filter sweeps start and stop gently: no jump at the first step', () => {
+  for (const style of ALL) {
+    for (const side of ['out', 'in'] as const) {
+      let prev = controls(style, side, 0, 1 / 32);
+      for (let k = 1; k <= 100; k++) {
+        const u = k / 100;
+        const c = controls(style, side, u, 1 / 32);
+        // Leaving fully open or fully closed, the first 1% of the window moves it by under 1%.
+        for (const k of ['lp', 'hp'] as const) {
+          if (prev[k] === 0 || prev[k] === 1) assert.ok(Math.abs(c[k] - prev[k]) < 0.01, `${style} ${side} ${k} u=${u.toFixed(2)}`);
+        }
+        prev = c;
+      }
+    }
+  }
+});

@@ -116,8 +116,9 @@ export async function renderMix(a: AudioBuffer, b: AudioBuffer, plan: MixPlan, g
     chain(level, filter('highpass', MID_HIGH_HZ), filter('highpass', MID_HIGH_HZ), high);
     const sum = ctx.createGain();
     for (const band of [low, mid, high]) band.connect(sum);
-    const lp = filter('lowpass', 20000, 1.1);
-    const hp = filter('highpass', 20, 1.1);
+    // Butterworth Q: a resonant bump at the cutoff makes the sweep itself stand out.
+    const lp = filter('lowpass', 20000);
+    const hp = filter('highpass', 20);
     const vol = ctx.createGain();
     chain(sum, lp, hp, vol, limiter);
     const echoSend = ctx.createGain();
