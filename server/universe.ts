@@ -260,6 +260,18 @@ function labelKey(label: string | null): string | null {
 
 /** Track title without version suffixes, so "Main Theme (Jazz ver.)" matches "Main Theme". */
 export function titleKey(title: string): string {
+  let key = titleKeys.get(title);
+  if (key === undefined) {
+    if (titleKeys.size >= 200_000) titleKeys.clear();
+    key = foldTitle(title);
+    titleKeys.set(title, key);
+  }
+  return key;
+}
+
+const titleKeys = new Map<string, string>();
+
+function foldTitle(title: string): string {
   return searchKey(
     title
       .replace(/\s*[([（【［].*?[)\]）】］]\s*/g, ' ')

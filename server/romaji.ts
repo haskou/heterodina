@@ -56,6 +56,21 @@ export class Romanizer {
  * all become "tokyo". Japanese characters are kept as they are.
  */
 export function searchKey(text: string): string {
+  // Universes compare the same few thousand titles and names over and over:
+  // memoized, a universe builds in milliseconds instead of seconds.
+  let key = keys.get(text);
+  if (key === undefined) {
+    if (keys.size >= MAX_KEYS) keys.clear();
+    key = fold(text);
+    keys.set(text, key);
+  }
+  return key;
+}
+
+const MAX_KEYS = 200_000;
+const keys = new Map<string, string>();
+
+function fold(text: string): string {
   return text
     .normalize('NFKC')
     .toLowerCase()
