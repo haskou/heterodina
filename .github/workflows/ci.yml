@@ -52,3 +52,11 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      # Old builds pile up in GHCR: keep latest, releases and the last three
+      # commits; drop the rest along with their platform layers.
+      - uses: dataaxiom/ghcr-cleanup-action@v1
+        with:
+          exclude-tags: latest,*.*.*
+          keep-n-tagged: 3
+          delete-untagged: true
+          delete-partial-images: true
