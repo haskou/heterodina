@@ -11,6 +11,8 @@ import type { ServerStatus } from '../shared/types.ts';
 import type { TempoAnalyzer } from './tempo.ts';
 
 const ID = /^\d+$/;
+/** A resize that takes longer than this is stuck; it is retried. */
+const ART_TIMEOUT_MS = 20_000;
 
 /** Upstream headers worth forwarding for audio; everything else is dropped. */
 const AUDIO_HEADERS = ['content-length', 'content-range', 'accept-ranges', 'etag', 'last-modified'];
@@ -41,7 +43,8 @@ export function createApp({ plex, library, radio, tempo, artCache = new ArtCache
     handle(req, res).catch((err: unknown) => {
       // Log the message only: Plex errors never contain the token, but
       // a full error object could carry request internals.
-      console.error(`[api] ${req.method} ${req.url}: ${err instanceof Error ? err.message : String(err)}`);
+      const cause = err instanceof Error && err.cause instanceof Error ? ` (${(err.cause as NodeJS.ErrnoException).code ?? err.cause.message})` : '';
+      console.error(`[api] ${req.method} ${req.url}: ${err instanceof Error ? err.message : String(err)}${cause}`);
       if (!res.headersSent) sendJson(res, 502, { error: 'upstream error' });
       else res.destroy();
     });
@@ -181,7 +184,7 @@ export function createApp({ plex, library, radio, tempo, artCache = new ArtCache
         minSize: 1,
         upscale: 1,
         url: artPath,
-      });
+      }, {}, AbortSignal.timeout(ART_TIMEOUT_MS));
       if (!upstream.ok) {
         await upstream.body?.cancel();
         return null;

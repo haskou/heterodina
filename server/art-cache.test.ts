@@ -39,3 +39,21 @@ test('art cache: a missing cover is not stored', async () => {
   assert.equal(await cache.get('/library/metadata/2/thumb/1', 300, none), null);
   assert.equal(calls, 2);
 });
+
+test('art cache: a dropped connection is retried, and only a few resizes run at once', async () => {
+  const cache = new ArtCache(null);
+  let running = 0;
+  let peak = 0;
+  let failures = 1;
+  const fetch = async (): Promise<Art> => {
+    running++;
+    peak = Math.max(peak, running);
+    await new Promise((r) => setTimeout(r, 5));
+    running--;
+    if (failures-- > 0) throw new TypeError('fetch failed');
+    return jpeg;
+  };
+  const arts = await Promise.all(Array.from({ length: 12 }, (_, i) => cache.get(`/library/metadata/${i}/thumb/1`, 300, fetch)));
+  assert.ok(arts.every((a) => a?.body.equals(jpeg.body)));
+  assert.ok(peak <= 4, `peak ${peak}`);
+});
