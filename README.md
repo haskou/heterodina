@@ -6,16 +6,17 @@ Pick one song, or one of a few suggested starting points, and Heterodina keeps t
 
 [![Now playing: big cover, colours taken from the artwork, the radio's universe under the stars](docs/screenshots/playing.jpg)](docs/screenshots/playing.jpg)
 
-| Varied starting points | Search in romaji | The radio's universe, correctable |
+| Varied starting points | Search in romaji | The radio's universe: click “Radio · …” under the stars (or press `U`) to see which albums it draws from, and remove or add some |
 |---|---|---|
 | [![Six suggested songs from different corners of the library](docs/screenshots/start.jpg)](docs/screenshots/start.jpg) | [![Typing "tokyo" finds 東京 and トーキョー](docs/screenshots/search.jpg)](docs/screenshots/search.jpg) | [![Albums the radio draws from, with add and remove controls](docs/screenshots/universe.jpg)](docs/screenshots/universe.jpg) |
 
 ## Why Heterodina
 
 - **It knows what your music belongs to.** Start from a game soundtrack and you get that soundtrack, its composers, the jazz and rock arrangements of it, and the albums around it, not "other music that sounds vaguely similar". It works this out from your own Plex metadata. You can see it ("Radio · …") and correct it in two clicks.
-- **Transitions that sound mixed, not faded.**
-  - Songs overlap with equal-power curves and swap bass halfway, so two kick drums never fight.
-  - When the tempos match, the beats land on each other.
+- **Transitions that sound DJ-mixed, not faded, and fully automatic.**
+  - When tempos are close, both songs are time-stretched (pitch kept) onto one tempo that glides from one to the other, so beats and bars stay locked for up to 16 bars.
+  - It picks where to mix: bar lines near the end of one song and the start of the next where timbre and harmony match, landing on a drop or a new section when it can.
+  - Every hand-over gets its own style, chosen from tempo, key and energy: long blends with a bass swap, three-band filter waves, noise risers and loop rolls into louder songs, reverb washes when keys clash, echo or turntable-brake exits when tempos are far apart, and the beat mix, sound bomb, beat storm and signature styles of Spotify's mixing patent.
   - Consecutive album tracks stay gapless, and every track is loudness-normalized.
 - **The next song fits the last one.**
   - The radio follows the mood of what just played, so a station drifts naturally instead of jumping around.
@@ -41,8 +42,8 @@ Pick one song, or one of a few suggested starting points, and Heterodina keeps t
    - The best few are re-ranked by how well their start follows the current ending, in loudness and in tempo.
    - One is drawn at random among the best, so it is never the obvious choice every time.
 3. **Mix.**
-   - The browser decodes both tracks and finds where the sound really starts and ends.
-   - It detects the beats and schedules the fades, bass swap and start on the audio clock, so the mix stays sample-accurate even in a background tab.
+   - The browser decodes both tracks and analyses them beat by beat: tempo, bars, key, timbre, harmony, sections and drops.
+   - It chooses the transition points, length and style, renders the transition offline (time-stretch, EQ, filters, effects) and splices it sample-exactly between the two songs.
 
 ## Getting started
 
@@ -177,7 +178,14 @@ browser ──/api──▶ server (Node) ──X-Plex-Token──▶ Plex
   - As soon as a track starts, the engine loads the next one and plans the transition.
   - Start, fades, EQ and stop are scheduled on the `AudioContext` clock, so timing stays exact in a background tab.
   - Tracks up to 12 minutes are decoded whole, with sample-exact timing. Longer ones stream through an `<audio>` element to keep memory bounded.
-- **Planner** (`shared/transition.ts`): consecutive album tracks are gapless, with no trimming and no fade. Everything else gets an automatic mix in the spirit of Spotify's Automix:
+- **Mix** (`shared/mix.ts`, `shared/features.ts`, `shared/stretch.ts`, `mixer.ts`): every transition that isn't gapless, with nothing to configure.
+  - **Analysis:** on the outgoing track's last quarter and the incoming one's first fifth: beat grid, then per beat a 12-band timbre, a chroma (pitch-class) profile and loudness; the downbeat; the key (Krumhansl–Kessler profiles); section boundaries (novelty across 8 beats) and drops (the bass comes in much harder).
+  - **Compatibility** (after Spotify's mashup patent, US 11475867): tempo score `max(0.01, 1 − 3.5·|log2 ratio|)` × key score (semitones between relative-major roots, Camelot neighbours count as close). The better the fit, the longer the preferred window: 2, 4, 8 or 16 bars.
+  - **Transition points** (after Bittner et al., "Automatic Playlist Sequencing and Transitions", ISMIR 2017): every pair of downbeats and every length is scored on timbre and harmony distance, loudness, harmonic change balance and whether both regions end on a section boundary or a drop. The lowest cost wins.
+  - **Tempo:** when both beats are steady and within 8% (or double/half), both tracks are stretched with WSOLA onto a tempo gliding from one BPM to the other across the window. Otherwise each keeps its speed and the style keeps the overlap short.
+  - **Styles**, chosen per hand-over: blend (centre bass swap), wave (three-band hand-over through low-pass filters), rise (high-pass and noise riser, bass on the last beat), roll (loop halving into the drop), melt (low-pass into reverb), echo (tempo-synced echo exit), brake (turntable stop), and the mixing patent's beat mix, sound bomb (mid-third bass fade), beat storm (bass echo) and signature (bass and mid fade with a flanger). Into a drop or new section, the incoming bass waits for it.
+  - **Render:** an `OfflineAudioContext` with a Linkwitz-Riley three-band EQ (250 Hz / 2.5 kHz), sweeping filters, echo and convolution reverb buses and a peak limiter. The result plays as part of the incoming voice, spliced in and out with 10 ms overlaps.
+- **Fallback crossfade** (`shared/transition.ts`), for tracks that stream (over 12 minutes) or windows that don't fit:
   - **Overlap:** for the last N seconds of sound, the outgoing track fades out while the incoming one fades in.
     - The curves are equal-power (sine/cosine, measured within ±0.13 dB).
     - N is 6 s, or the length of the track's own fade-out, up to 12 s.
@@ -187,7 +195,6 @@ browser ──/api──▶ server (Node) ──X-Plex-Token──▶ Plex
     - With both tracks decoded, it detects tempo and phase on each side of the blend, using low- and high-band onsets and autocorrelation (1–4 ms per analysis).
     - If the tempos are compatible (same, double or half, under 50 ms of drift across the blend), the blend moves by less than half a beat so the beats coincide.
     - The bass swap then lasts one beat, centred on a beat.
-    - There is no time-stretching.
   - **Manual skip or new track:** 0.6 s fades. Anything still fading out goes with it, so three tracks never sound at once.
 - **Normalization:** Plex track gain, or album gain between consecutive tracks, never letting peaks exceed 0 dBFS.
 - **Theme:**
