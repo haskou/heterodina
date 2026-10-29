@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Heterodina</title>
+    <!-- Until the stylesheet and the translated text are in: a dark, empty page instead of raw markup. -->
+    <style>
+      html { background: hsl(220 8% 5%); color-scheme: dark; }
+      body { visibility: hidden; }
+    </style>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6' fill='%23d9a441'/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <header class="top">
+      <select id="source" class="source" data-i18n-title="sourceTitle">
+        <option value="" data-i18n="allLibrary"></option>
+      </select>
+      <div class="search">
+        <input id="search" type="search" data-i18n-placeholder="search" autocomplete="off" spellcheck="false" />
+        <ul id="results" class="results" hidden></ul>
+      </div>
+    </header>
+
+    <main class="stage">
+      <section id="now" class="now" hidden>
+        <div id="now-art" class="now-art"></div>
+        <div class="now-meta">
+          <div id="now-title" class="now-title"></div>
+          <div id="now-sub" class="now-sub"></div>
+          <div id="stars" class="stars" role="group" data-i18n-aria-label="rating"></div>
+          <button id="station" class="station" type="button" data-i18n-title="stationTitle" hidden></button>
+        </div>
+      </section>
+      <section id="empty" class="start">
+        <div class="start-head">
+          <span data-i18n="startHere"></span>
+          <button id="start-more" class="start-more" type="button" data-i18n-title="moreTitle" data-i18n="more"></button>
+        </div>
+        <ul id="start-list" class="start-list"></ul>
+        <p class="empty" data-i18n-html="orSearch"></p>
+      </section>
+    </main>
+
+    <footer class="bar">
+      <div></div>
+      <div class="bar-center">
+        <div class="controls">
+          <button id="play" class="btn play" type="button" data-i18n-title="playPause" disabled>
+            <svg viewBox="0 0 24 24" class="i-play"><path d="M8 5v14l11-7z" /></svg>
+            <svg viewBox="0 0 24 24" class="i-pause"><path d="M7 5h4v14H7zM13 5h4v14h-4z" /></svg>
+          </button>
+          <button id="next" class="btn" type="button" data-i18n-title="next" disabled>
+            <svg viewBox="0 0 24 24"><path d="M6 6l8.5 6L6 18zM16 6h2v12h-2z" /></svg>
+          </button>
+        </div>
+        <div class="progress">
+          <span id="pos" class="time">0:00</span>
+          <input id="seek" type="range" min="0" max="1000" value="0" step="1" disabled />
+          <span id="dur" class="time">0:00</span>
+        </div>
+      </div>
+      <div class="bar-right">
+        <svg viewBox="0 0 24 24" class="vol-icon"><path d="M4 9v6h4l5 4V5L8 9zM16 8.5a4.5 4.5 0 0 1 0 7" /></svg>
+        <input id="volume" type="range" min="0" max="100" value="80" step="1" data-i18n-title="volume" />
+      </div>
+    </footer>
+
+    <dialog id="universe" class="universe">
+      <header class="u-head">
+        <div>
+          <div id="u-title" class="u-title"></div>
+          <div id="u-sub" class="u-sub"></div>
+        </div>
+        <button id="u-close" class="btn" type="button" data-i18n-title="close">
+          <svg viewBox="0 0 24 24"><path d="M6.4 5 12 10.6 17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L5 6.4z" /></svg>
+        </button>
+      </header>
+      <input id="u-search" class="u-search" type="search" data-i18n-placeholder="addAlbum" autocomplete="off" spellcheck="false" />
+      <ul id="u-list" class="u-list"></ul>
+    </dialog>
+
+    <div id="toast" class="toast" hidden></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

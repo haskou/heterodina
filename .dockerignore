@@ -1,0 +1,10 @@
+node_modules
+dist
+.cache
+.env
+.env.*
+.git
+.github
+.claude
+docs
+*.log

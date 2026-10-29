@@ -1,0 +1,18 @@
+# Dependencies and build output
+node_modules/
+dist/
+
+# Local configuration: holds the Plex token
+.env
+.env.*
+!.env.example
+
+# Per-library caches (analysis, tempo, universe corrections)
+.cache/
+
+# Editor, OS and local tooling
+.claude/
+.vscode/
+.idea/
+.DS_Store
+*.log

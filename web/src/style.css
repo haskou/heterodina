@@ -1,0 +1,702 @@
+/* Theme colours are registered so they can transition when a new cover
+   arrives; everything else derives from them. */
+@property --bg {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: hsl(220 8% 9%);
+}
+
+@property --bg-deep {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: hsl(220 8% 5%);
+}
+
+@property --text {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: hsl(40 8% 90%);
+}
+
+@property --muted {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: hsl(220 5% 58%);
+}
+
+@property --accent {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: hsl(40 67% 55%);
+}
+
+:root {
+  color-scheme: dark;
+  --line: color-mix(in srgb, var(--text) 14%, transparent);
+  --glass: color-mix(in srgb, var(--bg-deep) 72%, transparent);
+  --hover: color-mix(in srgb, var(--text) 8%, transparent);
+  --bar-h: 88px;
+  --fade: 1.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition:
+    --bg var(--fade),
+    --bg-deep var(--fade),
+    --text var(--fade),
+    --muted var(--fade),
+    --accent var(--fade);
+  font-family: Inter, system-ui, -apple-system, 'Segoe UI', 'Hiragino Sans', sans-serif;
+  font-size: 14px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  display: grid;
+  grid-template-rows: auto 1fr var(--bar-h);
+  overflow: hidden;
+  color: var(--text);
+  background: radial-gradient(130% 100% at 50% 25%, var(--bg), var(--bg-deep));
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+kbd {
+  padding: 0 5px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font: inherit;
+}
+
+/* --- search --- */
+
+.top {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 18px 24px 0;
+}
+
+.source {
+  flex: 0 1 auto;
+  max-width: 180px;
+  padding: 9px 30px 9px 14px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background:
+    linear-gradient(45deg, transparent 50%, var(--muted) 50%) right 16px center / 5px 5px no-repeat,
+    linear-gradient(-45deg, transparent 50%, var(--muted) 50%) right 11px center / 5px 5px no-repeat,
+    var(--hover);
+  color: var(--text);
+  font: inherit;
+  text-overflow: ellipsis;
+  appearance: none;
+  outline: none;
+  cursor: pointer;
+}
+
+.source:focus-visible {
+  border-color: var(--line);
+}
+
+.source option {
+  background: var(--bg-deep);
+  color: var(--text);
+}
+
+.search {
+  position: relative;
+  flex: 0 1 520px;
+  min-width: 0;
+}
+
+#search {
+  width: 100%;
+  padding: 9px 14px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--hover);
+  color: var(--text);
+  font: inherit;
+  text-align: center;
+  outline: none;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+#search::placeholder {
+  color: var(--muted);
+}
+
+#search:focus {
+  text-align: left;
+  border-color: var(--line);
+  background: var(--glass);
+}
+
+.results {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  max-height: 60vh;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--glass);
+  backdrop-filter: blur(24px) saturate(1.4);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 16px 48px rgb(0 0 0 / 40%);
+}
+
+.result {
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.result[aria-selected='true'],
+.result:hover {
+  background: var(--hover);
+}
+
+.result.unplayable {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.result img,
+.result .ph {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  object-fit: cover;
+  background: var(--hover);
+}
+
+.r-title,
+.now-title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.r-sub {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.r-dur,
+.time {
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- now playing --- */
+
+.stage {
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  padding: 20px 24px 8px;
+}
+
+.now {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+  width: 100%;
+  min-width: 0;
+}
+
+.now-art {
+  position: relative;
+  width: min(calc(100vh - var(--bar-h) - 230px), 640px, 80vw);
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--hover);
+  box-shadow: 0 30px 80px rgb(0 0 0 / 45%);
+}
+
+/* Covers are stacked: a new one fades in over the previous, which is then removed. */
+.now-art img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity var(--fade);
+}
+
+.now-art img.shown {
+  opacity: 1;
+}
+
+.now-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  max-width: min(720px, 90vw);
+  text-align: center;
+}
+
+.now-title {
+  max-width: 100%;
+  font-size: 26px;
+  font-weight: 600;
+}
+
+.now-sub {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--muted);
+}
+
+.empty {
+  color: var(--muted);
+  text-align: center;
+}
+
+/* --- starting points --- */
+
+.start {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: min(960px, 100%);
+}
+
+.start-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 14px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.start-more {
+  padding: 2px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--hover);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.start-more:hover {
+  color: var(--text);
+}
+
+.start-more:disabled {
+  cursor: progress;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.start-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 1000px) {
+  .start-list {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+.start-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 8px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.start-card:hover {
+  background: var(--hover);
+}
+
+.start-card img,
+.start-card .ph {
+  width: 100%;
+  aspect-ratio: 1;
+  margin-bottom: 6px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: var(--hover);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 35%);
+}
+
+.start-title,
+.start-artist {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.start-artist {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* Stars are laid out right-to-left so `:hover ~` previews the lower ones. */
+.stars {
+  display: flex;
+  flex-direction: row-reverse;
+  margin-top: 4px;
+}
+
+.star {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--line);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.15s, transform 0.15s;
+}
+
+.star.on {
+  color: var(--accent);
+}
+
+.stars:hover .star {
+  color: var(--line);
+}
+
+.stars:hover .star:hover,
+.stars:hover .star:hover ~ .star {
+  color: var(--accent);
+}
+
+.star:active {
+  transform: scale(0.85);
+}
+
+/* --- station / universe --- */
+
+.station {
+  max-width: 100%;
+  margin-top: 2px;
+  padding: 4px 12px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.station:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.universe {
+  width: min(520px, calc(100vw - 32px));
+  max-height: min(680px, calc(100vh - 64px));
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  color: var(--text);
+  background: var(--glass);
+  backdrop-filter: blur(24px) saturate(1.4);
+  box-shadow: 0 24px 64px rgb(0 0 0 / 50%);
+}
+
+.universe[open] {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.universe::backdrop {
+  background: rgb(0 0 0 / 35%);
+}
+
+.u-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.u-title {
+  font-weight: 600;
+}
+
+.u-sub {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.u-search {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--hover);
+  color: var(--text);
+  font: inherit;
+  outline: none;
+}
+
+.u-list {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.u-row {
+  display: grid;
+  grid-template-columns: 40px 1fr 28px;
+  align-items: center;
+  gap: 12px;
+  padding: 5px 6px;
+  border-radius: 8px;
+}
+
+.u-row:hover {
+  background: var(--hover);
+}
+
+.u-row.faded > :not(.u-action) {
+  opacity: 0.4;
+}
+
+.u-row img,
+.u-row .ph {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  object-fit: cover;
+  background: var(--hover);
+}
+
+.u-action {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--muted);
+  font-size: 16px;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.u-row:hover .u-action,
+.u-row.faded .u-action,
+.u-action:focus-visible {
+  opacity: 1;
+}
+
+.u-action:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.u-action:empty {
+  visibility: hidden;
+}
+
+.u-sep {
+  height: 1px;
+  margin: 6px 0;
+  background: var(--line);
+}
+
+/* --- player bar --- */
+
+.bar {
+  display: grid;
+  grid-template-columns: minmax(100px, 1fr) minmax(240px, 2fr) minmax(100px, 1fr);
+  align-items: center;
+  gap: 24px;
+  padding: 0 24px;
+}
+
+.bar-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.btn {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+}
+
+.btn svg {
+  width: 20px;
+  height: 20px;
+  fill: currentcolor;
+}
+
+.btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* The radio is still choosing the next track. */
+.btn.busy svg {
+  display: none;
+}
+
+.btn.busy::after {
+  content: '';
+  width: 16px;
+  height: 16px;
+  border: 2px solid color-mix(in srgb, var(--text) 25%, transparent);
+  border-top-color: var(--text);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+.btn.play {
+  width: 38px;
+  height: 38px;
+  background: var(--text);
+  color: var(--bg-deep);
+}
+
+.btn.play .i-pause,
+body.playing .btn.play .i-play {
+  display: none;
+}
+
+body.playing .btn.play .i-pause {
+  display: block;
+}
+
+body.loading .btn.play {
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.progress .time {
+  width: 44px;
+  text-align: center;
+}
+
+input[type='range'] {
+  flex: 1;
+  height: 4px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.bar-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.bar-right input {
+  flex: 0 1 110px;
+}
+
+.vol-icon {
+  width: 18px;
+  height: 18px;
+  fill: var(--muted);
+  stroke: var(--muted);
+  stroke-width: 1.5;
+}
+
+.toast {
+  position: fixed;
+  bottom: calc(var(--bar-h) + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: var(--glass);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--line);
+}
