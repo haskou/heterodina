@@ -71,7 +71,7 @@ docker compose up -d   # http://localhost:5174
 
 `PLEX_URL` must be reachable from inside the container. Use the Plex server's LAN address, or `http://host.docker.internal:32400` when Plex runs on the same machine. Analysis caches persist in the `heterodina-cache` volume.
 
-Settings come from environment variables. A `.env` file is optional and only fills in what the environment doesn't set, so `docker run -e PLEX_URL=… -e PLEX_TOKEN=…` or an `environment:` block in compose works without one.
+Settings come from environment variables. A `.env` file is optional and only fills in what the environment doesn't set. The compose file takes `PLEX_URL` and `PLEX_TOKEN` from the shell, from your stack's variables (Portainer, Dockge…) or from a `.env` next to it, and refuses to start if either is missing; with plain Docker, use `docker run -e PLEX_URL=… -e PLEX_TOKEN=…`.
 
 | Variable | Purpose |
 |---|---|

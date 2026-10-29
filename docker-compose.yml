@@ -1,16 +1,16 @@
-# Runs the image published by CI. Copy .env.example to .env and fill in
-# PLEX_URL and PLEX_TOKEN, or set them under `environment` instead (the
-# .env file is optional). PLEX_URL must be reachable from the container:
-# use the server's LAN address, or http://host.docker.internal:32400 when
-# Plex runs on this same machine.
+# Runs the image published by CI. PLEX_URL and PLEX_TOKEN come from the
+# shell, from your stack's variables (Portainer, Dockge…) or from a .env
+# file next to this one (copy .env.example). PLEX_URL must be reachable
+# from the container: use the server's LAN address, or
+# http://host.docker.internal:32400 when Plex runs on this same machine.
 services:
   heterodina:
     image: ghcr.io/haskou/heterodina:latest
     restart: unless-stopped
-    env_file:
-      - path: .env
-        required: false
     environment:
+      PLEX_URL: ${PLEX_URL:?set PLEX_URL in the shell, the stack variables or .env}
+      PLEX_TOKEN: ${PLEX_TOKEN:?set PLEX_TOKEN in the shell, the stack variables or .env}
+      PLEX_LIBRARY: ${PLEX_LIBRARY:-Music}
       HOST: 0.0.0.0
       API_PORT: 5174
     ports:

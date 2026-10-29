@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 export interface Config {
   plexUrl: string;
@@ -16,8 +17,11 @@ export function loadConfig(envFile = '.env'): Config {
   const env = process.env;
   const plexToken = env.PLEX_TOKEN?.trim();
   const plexUrl = env.PLEX_URL?.trim();
-  if (!plexToken) throw new Error('PLEX_TOKEN missing (set it in the environment or in .env)');
-  if (!plexUrl) throw new Error('PLEX_URL missing (set it in the environment or in .env)');
+  const missing = [!plexUrl && 'PLEX_URL', !plexToken && 'PLEX_TOKEN'].filter(Boolean);
+  if (!plexUrl || !plexToken) {
+    const file = existsSync(envFile) ? `${resolve(envFile)} has none either` : `no ${resolve(envFile)} found`;
+    throw new Error(`${missing.join(' and ')} missing: not in the environment, and ${file}`);
+  }
   return {
     plexUrl: plexUrl.replace(/\/+$/, ''),
     plexToken,
