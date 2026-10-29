@@ -23,25 +23,41 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   });
 }
 
+/** "fetch failed" alone says nothing: add the network cause (ECONNREFUSED, ENOTFOUND…). */
+function describe(err: unknown): string {
+  if (!(err instanceof Error)) return String(err);
+  const cause = err.cause instanceof Error ? `: ${(err.cause as NodeJS.ErrnoException).code ?? err.cause.message}` : '';
+  return `${err.message}${cause}`;
+}
+
 library.sectionId().then(
   (id) => console.log(`[plex] library "${config.plexLibrary}" -> section ${id}`),
-  (err: unknown) => console.error(`[plex] ${err instanceof Error ? err.message : String(err)}`),
+  (err: unknown) => console.error(`[plex] ${config.plexUrl}: ${describe(err)}`),
 );
 
 // Local, romaji-aware search index over the whole library; refreshed
 // periodically so new music shows up. Plex search is used until it is ready.
 const INDEX_REFRESH_MS = 30 * 60 * 1000;
 const romanizer = Romanizer.create();
-async function refreshIndex(): Promise<void> {
+async function refreshIndex(): Promise<boolean> {
   const started = Date.now();
   try {
     const count = await library.buildIndex(new SearchIndex(await romanizer));
     console.log(`[index] ${count} tracks in ${Date.now() - started} ms`);
+    return true;
   } catch (err) {
-    console.error(`[index] ${err instanceof Error ? err.message : String(err)}`);
+    console.error(`[index] ${describe(err)}`);
+    return false;
   }
 }
-const firstIndex = refreshIndex();
+/** Plex may still be starting (e.g. in the same compose stack): keep trying, backing off to a minute. */
+async function firstRefresh(): Promise<void> {
+  for (let wait = 5000; !(await refreshIndex()); wait = Math.min(wait * 2, 60_000)) {
+    console.log(`[index] retrying in ${wait / 1000} s`);
+    await new Promise((r) => setTimeout(r, wait));
+  }
+}
+const firstIndex = firstRefresh();
 const radio = new Radio(
   library,
   overrides,
