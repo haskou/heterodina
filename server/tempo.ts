@@ -25,6 +25,13 @@ const END_MARGIN_S = 3;
 const CONCURRENCY = 3;
 /** A window that fails (Plex busy, connection dropped) is tried this many times. */
 const ATTEMPTS = 2;
+/**
+ * Background work (whole universes, thousands of tracks) gets one worker
+ * and a rest after each track, so decoding never starves the API: the
+ * server stays responsive and a pick the radio is waiting for goes first.
+ */
+const BACKGROUND_WORKERS = 1;
+const BACKGROUND_REST_MS = 1500;
 
 export class TempoAnalyzer {
   readonly #plex: PlexClient;
@@ -33,6 +40,10 @@ export class TempoAnalyzer {
   /** Waiting ids, most urgent first. */
   #queue: string[] = [];
   readonly #pending = new Map<string, { promise: Promise<void>; resolve: () => void }>();
+  /** Ids someone is waiting for (ensure). */
+  readonly #urgent = new Set<string>();
+  #background = 0;
+  #resting = false;
   /**
    * Plex identities of idle workers. The transcoder only serves clients it
    * has made a decision for, and concurrent decisions under one identity
@@ -77,29 +88,44 @@ export class TempoAnalyzer {
       this.#pending.set(id, entry);
       this.#queue.push(id);
     }
-    if (urgent) this.#queue = [id, ...this.#queue.filter((q) => q !== id)];
+    if (urgent) {
+      this.#urgent.add(id);
+      this.#queue = [id, ...this.#queue.filter((q) => q !== id)];
+    }
     return entry.promise;
   }
 
   #pump(): void {
     while (this.#idle.length && this.#queue.length) {
-      const id = this.#queue.shift()!;
+      const id = this.#queue[0]!;
+      const urgent = this.#urgent.has(id);
+      if (!urgent && (this.#background >= BACKGROUND_WORKERS || this.#resting)) return;
+      this.#queue.shift();
       if (this.#store.get(id)) {
         this.#done(id);
         continue;
       }
       const client = this.#idle.pop()!;
+      if (!urgent) this.#background++;
       this.#analyze(id, client)
         .catch((err: unknown) => console.error(`[tempo] ${id}: ${err instanceof Error ? err.message : String(err)}`))
         .finally(() => {
           this.#idle.push(client);
           this.#done(id);
+          if (urgent) return this.#pump();
+          this.#background--;
+          this.#resting = true;
+          setTimeout(() => {
+            this.#resting = false;
+            this.#pump();
+          }, BACKGROUND_REST_MS).unref();
           this.#pump();
         });
     }
   }
 
   #done(id: string): void {
+    this.#urgent.delete(id);
     this.#pending.get(id)?.resolve();
     this.#pending.delete(id);
   }
