@@ -1,3 +1,4 @@
+import { setPriority } from 'node:os';
 import { createApp } from './app.ts';
 import { loadConfig } from './config.ts';
 import { Library, type StoredTransition } from './library.ts';
@@ -9,6 +10,12 @@ import { JsonStore } from './store.ts';
 import { TempoAnalyzer, type TrackTempo } from './tempo.ts';
 
 const config = loadConfig();
+// Background analysis is never urgent: let Plex and the rest of the box go first.
+try {
+  setPriority(10);
+} catch {
+  // Not allowed here; run at normal priority.
+}
 const plex = new PlexClient(config.plexUrl, config.plexToken);
 const transitions = new JsonStore<StoredTransition>('.cache/transitions.json');
 const library = new Library(plex, config.plexLibrary, transitions);
@@ -58,16 +65,17 @@ async function firstRefresh(): Promise<void> {
   }
 }
 const firstIndex = firstRefresh();
+const tempo = new TempoAnalyzer(plex, library, tempos);
 const radio = new Radio(
   library,
   overrides,
   await romanizer.then((r) => (text: string) => r.words(text)),
-  new TempoAnalyzer(plex, library, tempos),
+  tempo,
 );
 // Have starting points ready before the first page asks.
 void firstIndex.then(() => radio.suggestions()).catch(() => {});
 setInterval(() => void refreshIndex(), INDEX_REFRESH_MS).unref();
 
-createApp({ plex, library, radio, staticDir: 'dist' }).listen(config.port, config.host, () => {
+createApp({ plex, library, radio, tempo, staticDir: 'dist' }).listen(config.port, config.host, () => {
   console.log(`[api] http://${config.host}:${config.port}`);
 });

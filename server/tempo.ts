@@ -27,11 +27,12 @@ const CONCURRENCY = 3;
 const ATTEMPTS = 2;
 /**
  * Background work (whole universes, thousands of tracks) gets one worker
- * and a rest after each track, so decoding never starves the API: the
- * server stays responsive and a pick the radio is waiting for goes first.
+ * and a long rest after each track: every track costs Plex two transcodes
+ * and us two decodes, and on a small NAS that adds up. It is only a
+ * head start; a pick the radio is waiting for is analysed at once.
  */
 const BACKGROUND_WORKERS = 1;
-const BACKGROUND_REST_MS = 1500;
+const BACKGROUND_REST_MS = 6000;
 
 export class TempoAnalyzer {
   readonly #plex: PlexClient;
@@ -56,6 +57,11 @@ export class TempoAnalyzer {
     this.#library = library;
     this.#store = store;
     this.#idle = Array.from({ length: CONCURRENCY }, (_, i) => `${client}-${i + 1}`);
+  }
+
+  /** Tracks analysed so far, and waiting (queued or being analysed). */
+  progress(): { analysed: number; waiting: number } {
+    return { analysed: this.#store.size, waiting: this.#pending.size };
   }
 
   /** Cached tempo, or undefined when not analysed yet. */
