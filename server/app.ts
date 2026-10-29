@@ -11,6 +11,8 @@ import type { ServerStatus } from '../shared/types.ts';
 import type { TempoAnalyzer } from './tempo.ts';
 
 const ID = /^\d+$/;
+/** A browser's player id, sent with timeline reports. */
+const CLIENT = /^[a-z0-9-]{8,64}$/;
 /** A resize that takes longer than this is stuck; it is retried. */
 const ART_TIMEOUT_MS = 20_000;
 
@@ -56,6 +58,8 @@ export function createApp({ plex, library, radio, tempo, artCache = new ArtCache
 
     const ratingMatch = /^\/api\/tracks\/([^/]+)\/rating$/.exec(path);
     if (ratingMatch && req.method === 'PUT') return setRating(req, res, ratingMatch[1] ?? '');
+    const timelineMatch = /^\/api\/tracks\/([^/]+)\/timeline$/.exec(path);
+    if (timelineMatch && req.method === 'POST') return reportTimeline(req, res, timelineMatch[1] ?? '');
     const universeMatch = /^\/api\/radio\/universe\/([^/]+)\/albums\/([^/]+)$/.exec(path);
     if (universeMatch && req.method === 'PUT') return correctUniverse(req, res, universeMatch[1] ?? '', universeMatch[2] ?? '');
 
@@ -130,6 +134,24 @@ export function createApp({ plex, library, radio, tempo, artCache = new ArtCache
     }
     await library.rate(id, rating as number | null);
     return sendJson(res, 200, { rating });
+  }
+
+  async function reportTimeline(req: IncomingMessage, res: ServerResponse, id: string): Promise<void> {
+    if (!ID.test(id)) return sendJson(res, 400, { error: 'bad id' });
+    let body: { state?: unknown; time?: unknown; duration?: unknown; client?: unknown } | null;
+    try {
+      body = JSON.parse(await readBody(req, 1024)) as typeof body;
+    } catch {
+      return sendJson(res, 400, { error: 'bad json' });
+    }
+    const { state, time, duration, client } = body ?? {};
+    const ms = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v < 1e9;
+    if ((state !== 'playing' && state !== 'paused' && state !== 'stopped') || !ms(time) || !ms(duration) || typeof client !== 'string' || !CLIENT.test(client)) {
+      return sendJson(res, 400, { error: 'bad timeline' });
+    }
+    await library.timeline(id, client, state, time, duration);
+    res.statusCode = 204;
+    res.end();
   }
 
   async function correctUniverse(req: IncomingMessage, res: ServerResponse, seedAlbumId: string, albumId: string): Promise<void> {

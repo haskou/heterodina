@@ -17,6 +17,13 @@ export const api = {
   search: (q: string, playlist: string | null, signal?: AbortSignal) =>
     getJson<Track[]>(`/api/search?q=${encodeURIComponent(q)}${within(playlist)}`, signal),
   track: (id: string) => getJson<Track>(`/api/tracks/${id}`),
+  /** Tells Plex what this browser is playing; `beacon` survives the page closing. */
+  timeline: (id: string, body: { state: 'playing' | 'paused' | 'stopped'; time: number; duration: number; client: string }, beacon = false): void => {
+    const url = `/api/tracks/${id}/timeline`;
+    const json = JSON.stringify(body);
+    if (beacon && navigator.sendBeacon(url, new Blob([json], { type: 'application/json' }))) return;
+    void fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: json, keepalive: true }).catch(() => {});
+  },
   rate: async (id: string, rating: number | null): Promise<void> => {
     const res = await fetch(`/api/tracks/${id}/rating`, {
       method: 'PUT',

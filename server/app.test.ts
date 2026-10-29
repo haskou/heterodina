@@ -41,6 +41,7 @@ const trackMeta = (id: string, title: string): PlexMetadata => ({
 const seen: IncomingMessage[] = [];
 let levelRequests = 0;
 const rateCalls: Record<string, string>[] = [];
+const timelineCalls: { params: Record<string, string>; client: string | undefined; product: string | undefined }[] = [];
 let plexServer: Server;
 let app: Server;
 let base = '';
@@ -96,6 +97,14 @@ before(async () => {
     }
     if (url.pathname === '/:/rate' && req.method === 'PUT') {
       rateCalls.push(Object.fromEntries(url.searchParams));
+      return res.end();
+    }
+    if (url.pathname === '/:/timeline') {
+      timelineCalls.push({
+        params: Object.fromEntries(url.searchParams),
+        client: req.headers['x-plex-client-identifier'] as string | undefined,
+        product: req.headers['x-plex-product'] as string | undefined,
+      });
       return res.end();
     }
     if (url.pathname === '/photo/:/transcode') {
@@ -193,6 +202,27 @@ test('rating is forwarded to Plex and validated', async () => {
       ['1', '-1', 'com.plexapp.plugins.library'],
     ],
   );
+});
+
+test('timeline reports reach Plex as the Heterodina player, one session per browser', async () => {
+  const post = (body: unknown): Promise<Response> =>
+    fetch(`${base}/api/tracks/1/timeline`, { method: 'POST', body: JSON.stringify(body) });
+  const ok = await post({ state: 'playing', time: 12345.6, duration: 107997, client: 'abcd-1234-ef' });
+  assert.equal(ok.status, 204);
+  const call = timelineCalls.at(-1)!;
+  assert.deepEqual(
+    { state: call.params.state, time: call.params.time, ratingKey: call.params.ratingKey, key: call.params.key, client: call.client, product: call.product },
+    { state: 'playing', time: '12346', ratingKey: '1', key: '/library/metadata/1', client: 'heterodina-abcd-1234-ef', product: 'Heterodina' },
+  );
+  for (const bad of [
+    { state: 'rewinding', time: 0, duration: 1, client: 'abcd-1234-ef' },
+    { state: 'paused', time: -1, duration: 1, client: 'abcd-1234-ef' },
+    { state: 'paused', time: 0, duration: 1, client: 'x' },
+    { state: 'paused', time: 0, duration: 1, client: 'Bad Client!' },
+  ]) {
+    assert.equal((await post(bad)).status, 400, JSON.stringify(bad));
+  }
+  assert.equal(timelineCalls.length, 1);
 });
 
 test('art only accepts Plex metadata image paths', async () => {

@@ -28,6 +28,7 @@ Pick one song, or one of a few suggested starting points, and Heterodina keeps t
   - It avoids slamming a loud ending into a quiet intro.
   - It prefers hand-overs whose tempos can lock.
 - **It plays what you love.** Your 3–5★ songs come up more often, and 1★ songs never play. Ratings sync with Plex.
+- **Plex sees what you play.** Heterodina shows up in Plex's Now Playing, and plays count in your history and play counts. A song mixed out in its last quarter counts as played; a skipped one doesn't.
 - **Variety without effort.** It doesn't repeat songs (or other copies of them), doesn't stack the same album or artist, and doesn't play five arrangements of the same theme in a row.
 - **Use your Plex playlists as a filter.** Choose a playlist, smart ones included, and search and radio stay inside it. Let Plex do "unplayed", "no skips" or "4★ and up", and Heterodina does the rest.
 - **Search the way you type.** Romaji finds kana and kanji (`tokyo` finds 東京).

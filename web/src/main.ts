@@ -53,6 +53,64 @@ const ui = {
 
 const queue = new Queue();
 
+// --- Plex "Now Playing" and play counts: this browser reports as a player ---
+
+const plexNow = (() => {
+  const REPORT_MS = 10_000;
+  let client = '';
+  try {
+    client = localStorage.getItem('heterodina-client') ?? '';
+    if (!client) localStorage.setItem('heterodina-client', (client = crypto.randomUUID()));
+  } catch {
+    client = crypto.randomUUID();
+  }
+  let current: Track | null = null;
+  /** Last known position of `current`, in seconds. */
+  let at = 0;
+  let playing = false;
+  const send = (track: Track, state: 'playing' | 'paused' | 'stopped', seconds: number, beacon = false): void =>
+    api.timeline(track.id, { state, time: seconds * 1000, duration: track.durationMs, client }, beacon);
+  let lastReport = 0;
+  window.setInterval(() => {
+    if (!current || !playing || engine.track !== current) return;
+    at = engine.position;
+    if (Date.now() - lastReport < REPORT_MS) return;
+    lastReport = Date.now();
+    send(current, 'playing', at);
+  }, 1000);
+  window.addEventListener('pagehide', () => {
+    if (current) send(current, 'stopped', engine.position, true);
+  });
+  return {
+    /**
+     * A new track took over. One that reached its last quarter was mixed
+     * out, not skipped: it counts as played to the end.
+     */
+    track(track: Track): void {
+      if (current && current.id !== track.id) {
+        const seconds = current.durationMs / 1000;
+        send(current, 'stopped', at >= 0.75 * seconds ? seconds : at);
+      }
+      current = track;
+      at = 0;
+      lastReport = Date.now();
+      if (playing) send(track, 'playing', 0);
+    },
+    state(state: 'playing' | 'paused' | null): void {
+      playing = state === 'playing';
+      if (!current) return;
+      if (state === null) {
+        send(current, 'stopped', at);
+        current = null;
+        return;
+      }
+      if (engine.track === current) at = engine.position;
+      lastReport = Date.now();
+      send(current, state, at);
+    },
+  };
+})();
+
 const player = new BroadcastChannel('heterodina-player');
 const engine = new AudioEngine(queue, {
   state(state, track) {
@@ -62,8 +120,10 @@ const engine = new AudioEngine(queue, {
     ui.seek.disabled = state === 'idle' || state === 'loading';
     media.playing(state === 'playing');
     if (state === 'playing') player.postMessage('playing');
+    if (state !== 'loading') plexNow.state(state === 'idle' ? null : state);
   },
   trackChanged(track) {
+    plexNow.track(track);
     show(track);
     media.track(track);
     history.push(track.id);

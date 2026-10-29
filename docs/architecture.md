@@ -14,6 +14,7 @@ browser ──/api──▶ server (Node) ──X-Plex-Token──▶ Plex
   - `/api/suggestions`: varied starting points.
   - `/api/tracks/:id`: track detail with loudness and transition profile.
   - `PUT /api/tracks/:id/rating`: star rating.
+  - `POST /api/tracks/:id/timeline`: playback report (`playing`, `paused`, `stopped`), forwarded to Plex's `/:/timeline` as a player called Heterodina, one per browser. It shows under Now Playing, and Plex counts the play once it passes ~90%.
   - `/api/radio/next?seed=&from=&recent=`: next radio track.
   - `/api/radio/context?seed=`: the radio's universe.
   - `PUT /api/radio/universe/:seedAlbum/albums/:album`: remove (`{"excluded":true}`) or add/restore an album.

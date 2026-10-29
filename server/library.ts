@@ -97,6 +97,8 @@ export function toTrack(meta: PlexMetadata): Track {
   };
 }
 
+export type PlaybackState = 'playing' | 'paused' | 'stopped';
+
 export interface AudioSource {
   partKey: string;
   contentType: string;
@@ -321,6 +323,26 @@ export class Library {
   }
 
   /** Sets (0-10) or clears (null) the Plex user rating. */
+  /**
+   * Reports playback to Plex as a player called Heterodina: it shows under
+   * Now Playing, and Plex itself counts the play once the time passes ~90%.
+   * `client` keeps each browser its own session.
+   */
+  async timeline(id: string, client: string, state: PlaybackState, timeMs: number, durationMs: number): Promise<void> {
+    const res = await this.#plex.fetch(
+      '/:/timeline',
+      { ratingKey: id, key: `/library/metadata/${id}`, state, time: Math.round(timeMs), duration: Math.round(durationMs), identifier: 'com.plexapp.plugins.library' },
+      {
+        'X-Plex-Client-Identifier': `heterodina-${client}`,
+        'X-Plex-Product': 'Heterodina',
+        'X-Plex-Device-Name': 'Heterodina',
+        'X-Plex-Platform': 'Web',
+      },
+    );
+    await res.body?.cancel();
+    if (!res.ok) throw new Error(`Plex ${res.status} for timeline`);
+  }
+
   async rate(id: string, rating: number | null): Promise<void> {
     await this.#plex.put('/:/rate', { key: id, identifier: 'com.plexapp.plugins.library', rating: rating ?? -1 });
     const known = this.#byId.get(id);
