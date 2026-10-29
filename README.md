@@ -1,6 +1,6 @@
 # Heterodina
 
-**Your Plex music library as an endless, DJ-mixed radio station.**
+**Your Plex music library as an endless DJ set, in the original quality.**
 
 Pick one song, or one of a few suggested starting points, and Heterodina keeps the music going. Every next track is chosen to fit what is playing, and it is mixed in as a DJ would. There are no settings, no queue to manage and no playlists to build.
 
@@ -18,6 +18,7 @@ Pick one song, or one of a few suggested starting points, and Heterodina keeps t
   - It picks where to mix: bar lines near the end of one song and the start of the next where timbre and harmony match, landing on a drop or a new section when it can.
   - Every hand-over gets its own style, chosen from tempo, key and energy: long blends with a bass swap, three-band filter waves, noise risers and loop rolls into louder songs, reverb washes when keys clash, echo or turntable-brake exits when tempos are far apart, and the beat mix, sound bomb, beat storm and signature styles of Spotify's mixing patent.
   - Consecutive album tracks stay gapless, and every track is loudness-normalized.
+- **Original quality, no transcoding.** Your files reach the browser as they are, so FLAC stays lossless at its own bit depth: no re-encoding to a streaming bitrate and no Plex transcoder in the playback path. The only processing is the loudness gain and, during a hand-over, the few bars being mixed.
 - **The next song fits the last one.**
   - The radio follows the mood of what just played, so a station drifts naturally instead of jumping around.
   - It avoids slamming a loud ending into a quiet intro.
