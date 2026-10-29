@@ -500,7 +500,7 @@ kbd {
 
 .u-row {
   display: grid;
-  grid-template-columns: 40px 1fr 28px;
+  grid-template-columns: 40px 1fr;
   align-items: center;
   gap: 12px;
   padding: 5px 6px;
@@ -511,7 +511,9 @@ kbd {
   background: var(--hover);
 }
 
-.u-row.faded > :not(.u-action) {
+.u-row.faded img,
+.u-row.faded .ph,
+.u-row.faded > div:last-child {
   opacity: 0.4;
 }
 
@@ -524,32 +526,51 @@ kbd {
   background: var(--hover);
 }
 
-.u-action {
-  width: 28px;
-  height: 28px;
+.u-art {
+  position: relative;
+  width: 40px;
+  height: 40px;
   padding: 0;
   border: 0;
-  border-radius: 50%;
   background: none;
-  color: var(--muted);
-  font-size: 16px;
-  cursor: pointer;
-  opacity: 0;
+  color: inherit;
 }
 
-.u-row:hover .u-action,
-.u-row.faded .u-action,
-.u-action:focus-visible {
+button.u-art {
+  cursor: pointer;
+}
+
+/* + / × / ↺ over the cover: on hover, always on touch screens and for removed albums. */
+.u-badge {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--bg-deep) 55%, transparent);
+  color: var(--text);
+  font-size: 20px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.u-row:hover .u-badge,
+.u-art:focus-visible .u-badge,
+.u-row.faded .u-badge {
   opacity: 1;
 }
 
-.u-action:hover {
-  background: var(--hover);
-  color: var(--text);
-}
-
-.u-action:empty {
-  visibility: hidden;
+@media (hover: none) {
+  .u-badge {
+    inset: auto -4px -4px auto;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--bg-deep);
+    font-size: 14px;
+    opacity: 1;
+  }
 }
 
 .u-sep {

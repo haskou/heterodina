@@ -365,23 +365,27 @@ function openUniverse(): void {
 function albumRow(album: RadioAlbum, action: { label: string; title: string; run: () => void }, faded = false): HTMLLIElement {
   const li = document.createElement('li');
   li.className = faded ? 'u-row faded' : 'u-row';
-  const art = album.art
+  const img = album.art
     ? Object.assign(document.createElement('img'), { src: api.artUrl(album.art, 80), alt: '', loading: 'lazy' })
     : Object.assign(document.createElement('div'), { className: 'ph' });
+  // The action sits on the cover itself: + to add, × to remove, ↺ to restore.
+  const art = document.createElement(action.label ? 'button' : 'div');
+  art.className = 'u-art';
+  art.append(img);
+  if (art instanceof HTMLButtonElement) {
+    art.type = 'button';
+    art.title = action.title;
+    art.setAttribute('aria-label', `${action.title}: ${album.title}`);
+    art.append(Object.assign(document.createElement('span'), { className: 'u-badge', textContent: action.label }));
+    art.addEventListener('click', action.run);
+  }
   const text = document.createElement('div');
   text.style.minWidth = '0';
   text.append(
     Object.assign(document.createElement('div'), { className: 'r-title', textContent: album.title }),
     Object.assign(document.createElement('div'), { className: 'r-sub', textContent: album.artist }),
   );
-  const button = Object.assign(document.createElement('button'), {
-    className: 'u-action',
-    type: 'button',
-    textContent: action.label,
-    title: action.title,
-  });
-  button.addEventListener('click', action.run);
-  li.append(art, text, button);
+  li.append(art, text);
   return li;
 }
 
