@@ -12,6 +12,8 @@ export interface PlexStream {
   albumGain?: string;
   peak?: string;
   albumPeak?: string;
+  bitDepth?: number;
+  samplingRate?: number;
 }
 
 export interface PlexPart {
@@ -23,6 +25,8 @@ export interface PlexPart {
 export interface PlexMedia {
   audioCodec?: string;
   container?: string;
+  /** kbps. */
+  bitrate?: number;
   Part?: PlexPart[];
 }
 

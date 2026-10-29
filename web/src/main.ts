@@ -137,6 +137,7 @@ function show(track: Track): void {
   ui.nowSub.title = ui.nowSub.textContent;
   crossfadeCover(track.art);
   renderStars(track);
+  renderStation(track);
   void applyCoverTheme(track.art);
   document.title = `${track.title} · ${track.artist}`;
 }
@@ -323,9 +324,17 @@ async function loadContext(retries = 10): Promise<void> {
     return;
   }
   current.context = context;
-  ui.station.textContent = `${t('radio')} · ${context.labels.slice(0, 3).join(' · ') || current.seed.album}`;
-  ui.station.hidden = false;
+  renderStation();
   if (ui.universe.open) renderUniverse();
+}
+
+/** The playing file's format, then what the station draws from. */
+function renderStation(playing: Track | null = engine.track): void {
+  const context = station?.context;
+  if (!station || !context) return;
+  const format = (playing ?? station.seed).format;
+  ui.station.textContent = `${format} · ${context.labels.slice(0, 3).join(' · ') || station.seed.album}`;
+  ui.station.hidden = false;
 }
 
 ui.station.addEventListener('click', () => openUniverse());

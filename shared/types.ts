@@ -16,6 +16,8 @@ export interface Track {
   /** Same-origin URL of the cover, or null. */
   art: string | null;
   codec: string;
+  /** What the file is, for display: "FLAC 24/96", "MP3 320 kbps". */
+  format: string;
   /** Plex user rating, 0-10 (2 per star); null when unrated. */
   rating: number | null;
   /** False when the browser cannot decode the file (e.g. ALAC). */

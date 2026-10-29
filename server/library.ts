@@ -58,6 +58,20 @@ function loudnessOf(meta: PlexMetadata): Loudness | null {
   };
 }
 
+const LOSSLESS = new Set(['flac', 'alac', 'pcm', 'wav', 'aiff', 'ape', 'wavpack']);
+
+/** "FLAC 24/96" for lossless files (depth/kHz), "MP3 320 kbps" for lossy ones. */
+export function formatOf(meta: PlexMetadata, codec: string): string {
+  const name = codec === 'pcm' ? 'WAV' : codec.toUpperCase();
+  const audio = audioStream(meta);
+  if (LOSSLESS.has(codec)) {
+    if (audio?.bitDepth && audio.samplingRate) return `${name} ${audio.bitDepth}/${+(audio.samplingRate / 1000).toFixed(1)}`;
+    return name;
+  }
+  const kbps = meta.Media?.[0]?.bitrate;
+  return kbps ? `${name} ${kbps} kbps` : name;
+}
+
 export function toTrack(meta: PlexMetadata): Track {
   const media = meta.Media?.[0];
   const codec = media?.audioCodec ?? media?.container ?? 'unknown';
@@ -75,6 +89,7 @@ export function toTrack(meta: PlexMetadata): Track {
     year: meta.parentYear ?? null,
     art: artUrl(meta.parentThumb ?? meta.thumb),
     codec,
+    format: formatOf(meta, codec),
     rating: meta.userRating ?? null,
     playable: BROWSER_CODECS.has(codec),
     loudness: loudnessOf(meta),

@@ -217,6 +217,16 @@ test('toTrack marks ALAC as unplayable', () => {
   assert.equal(t.loudness, null);
 });
 
+test('toTrack describes the file: depth/kHz when lossless, kbps when lossy', () => {
+  const meta = trackMeta('6', 'x');
+  meta.Media = [{ audioCodec: 'flac', bitrate: 2800, Part: [{ key: '/p', Stream: [{ streamType: 2, bitDepth: 24, samplingRate: 96000 }] }] }];
+  assert.equal(toTrack(meta).format, 'FLAC 24/96');
+  meta.Media = [{ audioCodec: 'flac', bitrate: 900, Part: [{ key: '/p', Stream: [{ streamType: 2, bitDepth: 16, samplingRate: 44100 }] }] }];
+  assert.equal(toTrack(meta).format, 'FLAC 16/44.1');
+  meta.Media = [{ audioCodec: 'mp3', bitrate: 320, Part: [{ key: '/p' }] }];
+  assert.equal(toTrack(meta).format, 'MP3 320 kbps');
+});
+
 test('rankSearch keeps Plex order within a rank', () => {
   const mk = (title: string) => ({ ...toTrack(trackMeta(title, title)) });
   const ranked = rankSearch([mk('Re:Morning'), mk('Morning Band'), mk('morning')], 'Morning');
