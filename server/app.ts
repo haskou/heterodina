@@ -3,6 +3,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { extname, join, normalize, resolve } from 'node:path';
 import { Readable } from 'node:stream';
 import type { ReadableStream as WebReadableStream } from 'node:stream/web';
+import { ArtCache } from './art-cache.ts';
 import { isArtPath, type Library } from './library.ts';
 import type { PlexClient } from './plex.ts';
 import type { Radio } from './radio.ts';
@@ -29,11 +30,13 @@ export interface AppDeps {
   radio: Radio;
   /** Background tempo analysis, reported by /api/status. */
   tempo?: TempoAnalyzer;
+  /** Resized covers on disk; none when absent. */
+  artCache?: ArtCache;
   /** Built front-end to serve in production; skipped when absent. */
   staticDir?: string;
 }
 
-export function createApp({ plex, library, radio, tempo, staticDir }: AppDeps): Server {
+export function createApp({ plex, library, radio, tempo, artCache = new ArtCache(null), staticDir }: AppDeps): Server {
   return createServer((req, res) => {
     handle(req, res).catch((err: unknown) => {
       // Log the message only: Plex errors never contain the token, but
@@ -171,21 +174,27 @@ export function createApp({ plex, library, radio, tempo, staticDir }: AppDeps): 
     const artPath = url.searchParams.get('u') ?? '';
     if (!isArtPath(artPath)) return sendJson(res, 400, { error: 'bad art path' });
     const size = Math.min(Math.max(Number(url.searchParams.get('s')) || 300, 32), 1200);
-    const upstream = await plex.fetch('/photo/:/transcode', {
-      width: size,
-      height: size,
-      minSize: 1,
-      upscale: 1,
-      url: artPath,
+    const art = await artCache.get(artPath, size, async () => {
+      const upstream = await plex.fetch('/photo/:/transcode', {
+        width: size,
+        height: size,
+        minSize: 1,
+        upscale: 1,
+        url: artPath,
+      });
+      if (!upstream.ok) {
+        await upstream.body?.cancel();
+        return null;
+      }
+      return { type: upstream.headers.get('content-type') ?? 'image/jpeg', body: Buffer.from(await upstream.arrayBuffer()) };
     });
-    if (!upstream.ok) {
-      await upstream.body?.cancel();
-      return sendJson(res, 404, { error: 'no art' });
-    }
+    if (!art) return sendJson(res, 404, { error: 'no art' });
     res.statusCode = 200;
-    res.setHeader('Content-Type', upstream.headers.get('content-type') ?? 'image/jpeg');
-    res.setHeader('Cache-Control', 'private, max-age=604800, immutable');
-    await pipe(req, res, upstream);
+    res.setHeader('Content-Type', art.type);
+    res.setHeader('Content-Length', art.body.length);
+    // The path changes whenever the image does.
+    res.setHeader('Cache-Control', 'private, max-age=31536000, immutable');
+    res.end(req.method === 'HEAD' ? undefined : art.body);
   }
 
   function serveStatic(res: ServerResponse, path: string): void {

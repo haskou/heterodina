@@ -1,5 +1,6 @@
 import { setPriority } from 'node:os';
 import { createApp } from './app.ts';
+import { ArtCache } from './art-cache.ts';
 import { loadConfig } from './config.ts';
 import { Library, type StoredTransition } from './library.ts';
 import { PlexClient } from './plex.ts';
@@ -76,6 +77,6 @@ const radio = new Radio(
 void firstIndex.then(() => radio.suggestions()).catch(() => {});
 setInterval(() => void refreshIndex(), INDEX_REFRESH_MS).unref();
 
-createApp({ plex, library, radio, tempo, staticDir: 'dist' }).listen(config.port, config.host, () => {
+createApp({ plex, library, radio, tempo, artCache: new ArtCache('.cache/art'), staticDir: 'dist' }).listen(config.port, config.host, () => {
   console.log(`[api] http://${config.host}:${config.port}`);
 });
