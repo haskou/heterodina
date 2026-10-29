@@ -332,8 +332,15 @@ async function loadContext(retries = 10): Promise<void> {
 function renderStation(playing: Track | null = engine.track): void {
   const context = station?.context;
   if (!station || !context) return;
-  const format = (playing ?? station.seed).format;
-  ui.station.textContent = `${format} · ${context.labels.slice(0, 3).join(' · ') || station.seed.album}`;
+  const track = playing ?? station.seed;
+  // The artist and album are already in the line above: don't repeat them.
+  const shown = [track.artist, track.albumArtist, track.album].map((v) => v.toLocaleLowerCase()).filter(Boolean);
+  const repeats = (label: string): boolean => {
+    const l = label.toLocaleLowerCase();
+    return shown.some((v) => v.includes(l) || l.includes(v));
+  };
+  const labels = context.labels.filter((l) => !repeats(l)).slice(0, 3);
+  ui.station.textContent = [track.format, ...labels].join(' · ');
   ui.station.hidden = false;
 }
 
