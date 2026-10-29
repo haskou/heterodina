@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { loadConfig } from './config.ts';
+import { loadConfig, normalizeUrl } from './config.ts';
 
 const KEYS = ['PLEX_URL', 'PLEX_TOKEN', 'PLEX_LIBRARY'] as const;
 
@@ -36,4 +36,11 @@ test('config: the environment wins over .env, which fills the gaps', () => {
     assert.equal(c.plexToken, 'env');
     assert.equal(c.plexLibrary, 'Songs');
   });
+});
+
+test('config: PLEX_URL without a scheme means http', () => {
+  assert.equal(normalizeUrl('plex:32400'), 'http://plex:32400');
+  assert.equal(normalizeUrl('192.168.1.10:32400/'), 'http://192.168.1.10:32400');
+  assert.equal(normalizeUrl('https://plex.example.com'), 'https://plex.example.com');
+  assert.throws(() => normalizeUrl('http://exa mple:1'));
 });
