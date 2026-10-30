@@ -13,8 +13,7 @@
 // clashing chords, two voices at once, two full arrangements at once, and
 // level jumps. Pair and style are chosen together.
 //
-// Song compatibility after Spotify's mashup patent (US 11475867) sets the
-// preferred length from the tempo gap. Music without a steady beat gets a
+// The tempo gap sets the preferred length. Music without a steady beat gets a
 // long crossfade at its own speed; tempos more than 20% apart get an echo,
 // brake or spinback exit. Into louder tracks or drops, risers and loop
 // rolls; long DJ mixes sometimes tease the incoming track in. When keys
@@ -144,7 +143,7 @@ export interface Compatibility {
 }
 
 /**
- * Song-level compatibility (after US 11475867): tempo score
+ * Song-level compatibility: tempo score
  * max(0.01, 1 - 3.5·|log2 ratio|) and key score. A key clash only matters
  * where both tracks play chords, which the simulation measures, so the
  * preferred length comes from the tempo gap alone: 16 bars when the tempos
@@ -718,7 +717,7 @@ const RECIPES: Record<MixStyle, Recipe> = {
   djdrop: { out: [rideOut, djSwap(1)[0]], in: [rideIn, djSwap(1)[1]] },
   // Taps of the incoming track, then a full DJ swap.
   tease: { out: [rideOut, djSwap(0.5)[0]], in: [teaseIn, djSwap(0.5)[1]] },
-  // Equal-power crossfade over the whole window (the patent's "curvy" curve).
+  // Equal-power crossfade over the whole window.
   fade: { out: [curvyOut], in: [curvyIn] },
   // Both play; the basses trade places in half a beat at the midpoint.
   blend: { out: [overlapOut, centreSwap[0]], in: [overlapIn, centreSwap[1]] },
@@ -745,7 +744,7 @@ const RECIPES: Record<MixStyle, Recipe> = {
   brake: { out: [(u) => ({ verb: u < 1 ? 0.35 * up(u, 0.8, 1) : 0 })], in: [cutIn] },
   // On the last beat the outgoing record is pulled backwards by hand and let go.
   spinback: { out: [(u) => ({ verb: u < 1 ? 0.4 * up(u, 0.85, 1) : 0 })], in: [cutIn] },
-  // Mixing patent, "classic beat mix": tempos matched, linear crossfade.
+  // Classic beat mix: tempos matched, linear crossfade.
   beatmix: { out: [linearOut], in: [linearIn] },
   // "Sound bomb": a fast bass hand-over in the middle third.
   bomb: { out: [linearOut, midThird[0]], in: [linearIn, midThird[1]] },

@@ -63,7 +63,7 @@ From those:
 
 ## 4. Compatibility
 
-After Spotify's mashup patent (US 11475867):
+Song-level compatibility, from tempo and key:
 
 ```
 gap    = |log2(bpmB / bpmA)|                          (incoming tempo folded to ×2 or ×½ if closer)
@@ -142,7 +142,7 @@ The style is drawn among the simulated styles scoring within 0.02 of the best, f
 | Into a louder track (lift ≥ 3 dB) or a drop | 40% of the time: a noise riser (25%) or a loop roll (15%) |
 | A DJ mix of 8 bars or more | 20% of the time: a tease |
 
-Each style caps the length it is worth: DJ mix, DJ swap on the drop, tease, blend and fade up to 16 bars; rise, wave and the patent styles 8; melt and roll 4; echo, brake and spinback 2. A shorter window keeps the same end, the moment the search chose.
+Each style caps the length it is worth: DJ mix, DJ swap on the drop, tease, blend and fade up to 16 bars; rise, wave, beat mix, sound bomb, beat storm and signature 8; melt and roll 4; echo, brake and spinback 2. A shorter window keeps the same end, the moment the search chose.
 
 ## 7. Tempo: the time maps
 
@@ -212,8 +212,6 @@ Each style is a recipe of lanes that set, for each track at window progress `u` 
 | signature | Linear fade out; bass and mids fade across the window; flanger from the middle third on | Comes up fast; bass and mids rise across the window |
 
 Faders on DJ styles move on smoothstep curves, like a hand that starts and stops gently. A test sweeps every style except the plain fade and checks that the two basses never add up to more than 1.3× one bass; the simulation steers the fade away from music with bass in both tracks.
-
-Patent styles follow US 2020/0374625 (Spotify's mixing patent).
 
 ## 10. Offline render
 
