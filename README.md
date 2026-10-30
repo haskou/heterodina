@@ -87,3 +87,7 @@ System media keys work too.
 - [Getting started](docs/getting-started.md): Docker, running from source, settings, development commands.
 - [Architecture](docs/architecture.md): server and browser, endpoints, search, universe, radio, tempo analysis, Plex API notes.
 - [How transitions work](docs/transitions.md): beat grids, beat features, compatibility, cue search, styles, time-stretch, offline render and splice, step by step.
+
+## License
+
+[PolyForm Noncommercial 1.0.0](LICENSE.md): free to use, change and share for any noncommercial purpose (personal use, study, research, hobby projects, charities, schools). Commercial use is not allowed.
