@@ -1,17 +1,15 @@
 // Renders a beat-matched transition (shared/mix.ts) into one buffer: both
-// tracks time-stretched onto the shared tempo, then mixed offline through
+// tracks time-stretched onto the shared tempo (the incoming one pitch
+// shifted when the plan matches keys), then mixed offline through
 // a three-band EQ, filters, echo, reverb and a noise riser automated by
 // the plan's style. The engine splices the result between the two tracks.
 
-import { controls, mixLength, sourceA, sourceB, type Controls, type MixPlan } from '../../shared/mix.ts';
-import { stretch } from '../../shared/stretch.ts';
+import { controls, HP_CLOSED_HZ, LP_CLOSED_HZ, mixLength, sourceA, sourceB, type Controls, type MixPlan } from '../../shared/mix.ts';
+import { pitchStretch, stretch } from '../../shared/stretch.ts';
 
 /** Band edges of the three-band EQ (Hz). */
 const LOW_MID_HZ = 250;
 const MID_HIGH_HZ = 2500;
-/** Filter sweeps: a closed low-pass sits here, a closed high-pass here (Hz). */
-const LP_CLOSED_HZ = 120;
-const HP_CLOSED_HZ = 1800;
 /** Automation resolution: points per rendered second. */
 const POINTS_PER_S = 100;
 /** Effect levels against the normalized music. */
@@ -41,13 +39,16 @@ export async function renderMix(a: AudioBuffer, b: AudioBuffer, plan: MixPlan, g
   const seconds = mixLength(plan);
   const length = Math.ceil(seconds * rate);
   const windowEnd = plan.pre + plan.window;
+  const u = (t: number): number => (t - plan.pre) / plan.window;
   const stretched = {
     out: stretch(channels(a), rate, (t) => sourceA(plan, t), seconds),
-    in: stretch(channels(b), rate, (t) => sourceB(plan, t), seconds),
+    // A key match: the incoming track starts in the outgoing key and glides back to its own pitch.
+    in: pitchStretch(channels(b), rate, (t) => sourceB(plan, t), seconds, (t) => plan.pitch * (1 - Math.min(Math.max(u(t), 0), 1))),
   };
   // Hard edges in the data itself (automation points are 10 ms apart): the
   // outgoing track ends on the window's last beat, the incoming starts on its first.
   if (plan.style === 'brake') brake(stretched.out, Math.round(windowEnd * rate), Math.round((60 / plan.bpmB) * rate));
+  if (plan.style === 'spinback') spinback(stretched.out, Math.round(windowEnd * rate), Math.round((60 / plan.bpmB) * rate));
   cut(stretched.out, Math.round(windowEnd * rate), rate, 'after');
   cut(stretched.in, Math.round(plan.pre * rate), rate, 'before');
 
@@ -62,7 +63,6 @@ export async function renderMix(a: AudioBuffer, b: AudioBuffer, plan: MixPlan, g
   limiter.connect(ctx.destination);
 
   const beat = 1 / plan.beats;
-  const u = (t: number): number => (t - plan.pre) / plan.window;
   const points = Math.max(2, Math.ceil(seconds * POINTS_PER_S));
   const automate = (param: AudioParam, value: (t: number) => number): void => {
     const curve = new Float32Array(points);
@@ -126,7 +126,7 @@ export async function renderMix(a: AudioBuffer, b: AudioBuffer, plan: MixPlan, g
     chain(hp, echoSend, echo);
     chain(hp, reverbSend, reverb);
 
-    const at = (t: number): Controls => controls(plan.style, side, u(t), beat, plan.bassOnDrop);
+    const at = (t: number): Controls => controls(plan.style, side, u(t), beat);
     if (side === 'out' && plan.style === 'storm') {
       // Only the kicks and bass feed the echo.
       const send = ctx.createGain();
@@ -202,6 +202,25 @@ function brake(data: Float32Array[], end: number, length: number): void {
       const f = pos - i;
       q[start + j] = (source[i] ?? 0) * (1 - f) + (source[i + 1] ?? 0) * f;
       pos += 1 - j / length;
+    }
+  }
+}
+
+/**
+ * Spinback: a hand pulls the record backwards from where the last beat
+ * starts, fast at first, then lets go; it fades out over the last fifth.
+ */
+function spinback(data: Float32Array[], end: number, length: number): void {
+  for (const q of data) {
+    const start = end - length;
+    if (start < 0) continue;
+    let pos = start;
+    for (let j = 0; j < length; j++) {
+      const i = Math.floor(pos);
+      const f = pos - i;
+      const v = i >= 0 ? (q[i] ?? 0) * (1 - f) + (q[i + 1] ?? 0) * f : 0;
+      q[start + j] = v * Math.min(1, (length - j) / (0.2 * length));
+      pos -= 4 * (1 - j / length) ** 1.5;
     }
   }
 }

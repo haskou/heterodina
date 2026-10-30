@@ -45,3 +45,32 @@ test('beat features: downbeat on the accent, a section and a drop where the bass
   assert.equal(f.key.root, 9); // A: 55 Hz and 440 Hz
   for (const c of f.chroma) assert.ok(Math.abs(c.reduce((s, v) => s + v, 0) - 1) < 1e-9);
 });
+
+test('beat features: bass per beat rises at the drop', () => {
+  const bpm = 120;
+  const f = beatFeatures(song(bpm, 16, 8), RATE, 0, { period: 60 / bpm, phase: 0, confidence: 0.5 });
+  const mean = (v: number[]): number => v.reduce((s, x) => s + x, 0) / v.length;
+  assert.ok(mean(f.bass.slice(36, 60)) > 4 * mean(f.bass.slice(4, 28)));
+  assert.equal(f.bands.length, 3);
+  for (const band of f.bands) assert.equal(band.length, 64);
+});
+
+test('voice activity marks a wavering line, not a steady tone', () => {
+  const bpm = 120;
+  const seconds = 32;
+  const x = new Float32Array(seconds * RATE);
+  let phase = 0;
+  for (let i = 0; i < x.length; i++) {
+    const t = i / RATE;
+    // Steady 440 Hz for the first half, then the same note with a 60-cent vibrato at 5.5 Hz.
+    const cents = t < seconds / 2 ? 0 : 60 * Math.sin(2 * Math.PI * 5.5 * t);
+    phase += (2 * Math.PI * 440 * 2 ** (cents / 1200)) / RATE;
+    x[i] = 0.5 * Math.sin(phase);
+  }
+  const f = beatFeatures(x, RATE, 0, { period: 60 / bpm, phase: 0, confidence: 0.5 });
+  const mean = (v: number[]): number => v.reduce((s, x) => s + x, 0) / v.length;
+  const half = f.voice.length / 2;
+  assert.ok(mean(f.voice.slice(half + 4)) > 0.5, `voiced ${mean(f.voice.slice(half + 4))}`);
+  assert.ok(mean(f.voice.slice(0, half - 4)) < 0.1, `steady ${mean(f.voice.slice(0, half - 4))}`);
+  assert.ok(Math.min(...f.tonal.slice(2, -2)) > 0.3);
+});

@@ -18,9 +18,11 @@ Pick one song, or one of a few suggested starting points, and Heterodina keeps t
 
 - **It knows what your music belongs to.** Start from a game soundtrack and you get that soundtrack, its composers, the jazz and rock arrangements of it, and the albums around it, not "other music that sounds vaguely similar". It works this out from your own Plex metadata. You can see it (under the stars, next to the file format) and correct it in two clicks.
 - **Transitions that sound DJ-mixed, not faded, and fully automatic.**
-  - When tempos are close, both songs are time-stretched (pitch kept) onto one tempo that glides from one to the other, so beats and bars stay locked for up to 16 bars.
-  - It picks where to mix: bar lines near the end of one song and the start of the next where timbre and harmony match, landing on a drop or a new section when it can.
-  - Every hand-over gets its own style, chosen from tempo, key and energy: long blends with a bass swap, three-band filter waves, noise risers and loop rolls into louder songs, reverb washes when keys clash, echo or turntable-brake exits when tempos are far apart, and the beat mix, sound bomb, beat storm and signature styles of Spotify's mixing patent.
+  - When tempos are within 20%, both songs are time-stretched (pitch kept) onto one tempo that glides from one to the other, so beats and bars stay locked for up to 16 bars.
+  - It picks where and how to mix together: for every pair of bar lines near the end of one song and the start of the next, it plays each mixing style through a beat-by-beat simulation and avoids what a dance floor would hate: two bass lines at once, beats with no bass, two voices over each other, clashing chords, level jumps. Mixes land on phrase lines, outros play under intros, and drops get the new bass.
+  - It mixes like a club DJ: the new song comes in with its bass killed and mids down, the bass lines swap right before a downbeat, and the old fader comes down last. Sometimes it teases the new song in on the last beat of every other bar, or builds into a drop with a noise riser or a loop roll. Patent styles from Spotify's Mix are in the pool too.
+  - When the keys clash, the new song starts shifted into the old key and glides back to its own pitch.
+  - Songs without a steady beat get a long, gentle crossfade at their own speed; tempos too far apart get an echo, spinback or turntable-brake exit.
   - Consecutive album tracks stay gapless, and every track is loudness-normalized.
 - **Original quality, no transcoding.** Your files reach the browser as they are, so FLAC stays lossless at its own bit depth: no re-encoding to a streaming bitrate and no Plex transcoder in the playback path. The player shows what each file is, such as `FLAC 24/96` or `MP3 320 kbps`. The only processing is the loudness gain and, during a hand-over, the few bars being mixed.
 - **The next song fits the last one.**
@@ -48,8 +50,8 @@ Pick one song, or one of a few suggested starting points, and Heterodina keeps t
    - The best few are re-ranked by how well their start follows the current ending, in loudness and in tempo.
    - One is drawn at random among the best, so it is never the obvious choice every time.
 3. **Mix.**
-   - The browser decodes both tracks and analyses them beat by beat: tempo, bars, key, timbre, harmony, sections and drops.
-   - It chooses the transition points, length and style, renders the transition offline (time-stretch, EQ, filters, effects) and splices it sample-exactly between the two songs. [The details.](docs/transitions.md)
+   - The browser decodes both tracks and analyses them beat by beat: tempo, bars, key, timbre, harmony, bass, vocals and leads, sections and drops.
+   - It simulates every style on every candidate pair of bar lines, picks the points, length and style together, renders the transition offline (time-stretch, key shift, EQ, filters, effects) and splices it sample-exactly between the two songs. [The details.](docs/transitions.md)
 
 ## Getting started
 

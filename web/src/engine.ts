@@ -275,11 +275,14 @@ export class AudioEngine {
     const out = profileOf(from.track);
     const inc = profileOf(to.track);
     // The outgoing track's last quarter (plus room for a 16-bar window), the incoming one's first fifth (plus the same).
-    const sideA = sideOf(from.buffer, Math.max(out.leadIn, Math.min(OUT_REGION * out.duration, out.audioEnd - EDGE_S) - MIX_CONTEXT_S), out.audioEnd, [
-      out.audioEnd - BEAT_EDGE_S,
+    const sideA = sideOf(
+      from.buffer,
+      Math.max(out.leadIn, Math.min(OUT_REGION * out.duration, out.audioEnd - EDGE_S) - MIX_CONTEXT_S),
       out.audioEnd,
-    ]);
-    const sideB = sideOf(to.buffer, inc.leadIn, Math.min(inc.audioEnd, IN_REGION * inc.duration + MIX_CONTEXT_S), [inc.leadIn, inc.leadIn + BEAT_EDGE_S]);
+      [out.audioEnd - BEAT_EDGE_S, out.audioEnd],
+      from.level,
+    );
+    const sideB = sideOf(to.buffer, inc.leadIn, Math.min(inc.audioEnd, IN_REGION * inc.duration + MIX_CONTEXT_S), [inc.leadIn, inc.leadIn + BEAT_EDGE_S], to.level);
     const gridA = sideA.grid;
     const gridB = sideB.grid;
     const levels = {
@@ -291,7 +294,7 @@ export class AudioEngine {
       const bpm = (g: BeatGrid | null): string => (g ? (60 / g.period).toFixed(1) : '?');
       console.debug(
         `[transition] ${bpm(gridA)} -> ${bpm(gridB)} BPM, edges ${levels.outEnd.toFixed(1)} -> ${levels.inStart.toFixed(1)} dB:`,
-        plan ? `${plan.style}${plan.locked ? ' (beat-matched)' : ''}${plan.bassOnDrop ? ', bass on the drop' : ''}, ${plan.beats / 4} bars, ${plan.window.toFixed(1)} s` : 'crossfade',
+        plan ? `${plan.style}${plan.locked ? ' (beat-matched)' : ''}${plan.pitch ? `, ${plan.pitch > 0 ? '+' : ''}${plan.pitch} st key match` : ''}, ${plan.beats / 4} bars, ${plan.window.toFixed(1)} s` : 'crossfade',
         sideA.features && sideB.features ? `keys ${keyName(sideA.features.key)} -> ${keyName(sideB.features.key)}` : '',
       );
     }
@@ -529,11 +532,12 @@ const IN_REGION = 0.2;
 const BEAT_EDGE_S = 20;
 
 /**
- * Beat grid and beat-by-beat features of buffer[from..to). A long region
- * can hold beatless passages that blur the beat: then the grid comes from
- * `edge` alone (where the tracks actually meet).
+ * Beat grid and beat-by-beat features of buffer[from..to), analysed at the
+ * track's normalization `gain` so band energies compare across tracks. A
+ * long region can hold beatless passages that blur the beat: then the grid
+ * comes from `edge` alone (where the tracks actually meet).
  */
-function sideOf(buffer: AudioBuffer, from: number, to: number, edge: [number, number]): Side {
+function sideOf(buffer: AudioBuffer, from: number, to: number, edge: [number, number], gain: number): Side {
   const rate = buffer.sampleRate;
   const a = Math.max(0, Math.floor(from * rate));
   const b = Math.min(buffer.length, Math.floor(to * rate));
@@ -541,7 +545,7 @@ function sideOf(buffer: AudioBuffer, from: number, to: number, edge: [number, nu
   const mono = new Float32Array(b - a);
   for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
     const data = buffer.getChannelData(ch).subarray(a, b);
-    for (let i = 0; i < mono.length; i++) mono[i] = (mono[i] ?? 0) + (data[i] ?? 0) / buffer.numberOfChannels;
+    for (let i = 0; i < mono.length; i++) mono[i] = (mono[i] ?? 0) + ((data[i] ?? 0) * gain) / buffer.numberOfChannels;
   }
   const whole = beatGrid(mono, rate, a / rate);
   const grid = whole && whole.confidence >= MIN_MIX_CONFIDENCE ? whole : (gridOf(buffer, edge[0], edge[1]) ?? whole);

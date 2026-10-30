@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { stretch } from './stretch.ts';
+import { pitchStretch, stretch } from './stretch.ts';
 
 const RATE = 8000;
 
@@ -53,4 +53,17 @@ test('stereo channels move together', () => {
   const [a, b] = stretch([l, r], RATE, (t) => 0.5 + 1.05 * t, 1);
   assert.ok(a && b);
   for (let i = 0; i < a.length; i++) assert.ok(Math.abs((a[i] ?? 0) + (b[i] ?? 0)) < 1e-6);
+});
+
+test('pitch shift moves the pitch and keeps the time map', () => {
+  const src = sine(4, 220);
+  const [up] = pitchStretch([src], RATE, (t) => 0.5 + t, 2, () => 12);
+  assert.ok(up);
+  assert.equal(up.length, 2 * RATE);
+  const hz = frequency(up, 0.1 * RATE, 1.9 * RATE);
+  assert.ok(Math.abs(hz - 440) < 6, `${hz} Hz`);
+  // No shift: exactly the plain stretch.
+  const [same] = pitchStretch([src], RATE, (t) => 0.5 + t, 2, () => 0);
+  const [plain] = stretch([src], RATE, (t) => 0.5 + t, 2);
+  assert.deepEqual(same, plain);
 });

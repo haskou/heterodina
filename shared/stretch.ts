@@ -1,4 +1,4 @@
-// Time-stretching with the pitch kept (WSOLA): short windowed frames are
+// Time-stretching with the pitch kept (WSOLA), and pitch shifting on top: short windowed frames are
 // laid out at a fixed hop in the output and read from wherever a time map
 // says the source should be, each nudged (within a few ms) to the spot that
 // best continues the previous frame, so waveforms join without phasing.
@@ -105,6 +105,55 @@ export function stretch(
     previous = best;
   }
   return out.map((q) => q.slice(0, outLength));
+}
+
+/**
+ * Like `stretch`, with the pitch moved `semitones(t)` at output time t.
+ * With R(t) = ∫ 2^(semitones/12) dt, the stretched signal at R(t) must
+ * hold the source moment map(t): stretch onto map(R⁻¹(τ)), then read that
+ * back at R(t), which resamples it into the new pitch.
+ */
+export function pitchStretch(
+  channels: readonly Float32Array[],
+  rate: number,
+  map: (t: number) => number,
+  seconds: number,
+  semitones: (t: number) => number,
+): Float32Array<ArrayBuffer>[] {
+  const dt = 0.002;
+  const steps = Math.ceil(seconds / dt) + 2;
+  const R = new Float64Array(steps);
+  let shifted = false;
+  for (let i = 1; i < steps; i++) {
+    const s = semitones((i - 0.5) * dt);
+    if (Math.abs(s) > 1e-4) shifted = true;
+    R[i] = (R[i - 1] ?? 0) + dt * 2 ** (s / 12);
+  }
+  if (!shifted) return stretch(channels, rate, map, seconds);
+  const inverse = (tau: number): number => {
+    let lo = 0;
+    let hi = steps - 1;
+    while (hi - lo > 1) {
+      const m = (lo + hi) >> 1;
+      if ((R[m] ?? 0) <= tau) lo = m;
+      else hi = m;
+    }
+    return (lo + (tau - (R[lo] ?? 0)) / ((R[hi] ?? 0) - (R[lo] ?? 0) || 1)) * dt;
+  };
+  const stretched = stretch(channels, rate, (tau) => map(inverse(tau)), R[steps - 1] ?? seconds);
+  const outLength = Math.ceil(seconds * rate);
+  return stretched.map((q) => {
+    const o = new Float32Array(outLength);
+    for (let j = 0; j < outLength; j++) {
+      const x = j / rate / dt;
+      const i = Math.min(steps - 2, Math.floor(x));
+      const p = ((R[i] ?? 0) + ((R[i + 1] ?? 0) - (R[i] ?? 0)) * (x - i)) * rate;
+      const k = Math.floor(p);
+      const f = p - k;
+      o[j] = (q[k] ?? 0) * (1 - f) + (q[k + 1] ?? 0) * f;
+    }
+    return o;
+  });
 }
 
 /** Normalized cross-correlation of x[a..a+len) with x[b..b+len). */
