@@ -229,11 +229,11 @@ source ─ level ─┬─ LR4 low  (<250 Hz) ─ gain(low)  ─┐
                                                                                   └─ reverb send
 ```
 
-- **EQ:** Linkwitz–Riley 4th-order crossovers (two cascaded Butterworths), so the bands sum flat when all gains are 1.
+- **EQ:** Linkwitz–Riley 4th-order crossovers (two cascaded Butterworths), so the bands sum flat when all gains are 1. Web Audio takes a low/high-pass Q in dB, so Butterworth is Q = −3.01 dB, not 0.707.
 - **Filters:** sweeps move on a log scale, as the ear hears frequency: low-pass from 20 kHz down to 120 Hz, high-pass from 20 Hz up to 1.8 kHz.
 - **Echo bus:** a dotted eighth at the incoming tempo, 50% feedback through a 3.2 kHz low-pass.
 - **Reverb bus:** convolution with 3.2 s of decaying stereo noise.
-- **Limiter:** a compressor at −3 dB, 8:1, 3 ms attack, catching the peaks of two full tracks overlapping.
+- **Limiter:** a compressor at −3 dB, 8:1, 3 ms attack, catching the peaks of two full tracks overlapping. A fixed −1 dB trim after it cancels the makeup gain Web Audio's compressor adds, so the mix plays at the tracks' own level.
 - **Automation:** every control is a value curve with 100 points per second.
 - Hard edges are cut into the data itself, with 5 ms ramps, because automation points are 10 ms apart: the outgoing track stops exactly on the window's last beat, and the incoming one starts on its first.
 - **Levels:** both tracks are loudness-normalized. The render plays through the incoming voice, which already applies the incoming gain, so the outgoing side is scaled by `gainA / gainB`.

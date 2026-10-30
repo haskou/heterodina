@@ -10,6 +10,14 @@ import { pitchStretch, stretch } from '../../shared/stretch.ts';
 /** Band edges of the three-band EQ (Hz). */
 const LOW_MID_HZ = 250;
 const MID_HIGH_HZ = 2500;
+/**
+ * Butterworth Q for Web Audio low/high-pass biquads, whose Q is in dB
+ * (1/sqrt(2) as a plain number resonates and the crossover bands no
+ * longer sum flat: the whole mix came out up to 7 dB louder).
+ */
+const BUTTERWORTH_Q_DB = -3.0103;
+/** Undoes the fixed makeup gain Web Audio's compressor adds with our settings (about +1 dB). */
+const LIMITER_MAKEUP = 10 ** (-1.01 / 20);
 /** Automation resolution: points per rendered second. */
 const POINTS_PER_S = 100;
 /** Effect levels against the normalized music. */
@@ -60,7 +68,9 @@ export async function renderMix(a: AudioBuffer, b: AudioBuffer, plan: MixPlan, g
   limiter.ratio.value = 8;
   limiter.attack.value = 0.003;
   limiter.release.value = 0.15;
-  limiter.connect(ctx.destination);
+  const trim = ctx.createGain();
+  trim.gain.value = LIMITER_MAKEUP;
+  limiter.connect(trim).connect(ctx.destination);
 
   const beat = 1 / plan.beats;
   const points = Math.max(2, Math.ceil(seconds * POINTS_PER_S));
@@ -69,7 +79,7 @@ export async function renderMix(a: AudioBuffer, b: AudioBuffer, plan: MixPlan, g
     for (let i = 0; i < points; i++) curve[i] = value((i / (points - 1)) * seconds);
     param.setValueCurveAtTime(curve, 0, seconds);
   };
-  const filter = (type: BiquadFilterType, hz: number, q = Math.SQRT1_2): BiquadFilterNode => {
+  const filter = (type: BiquadFilterType, hz: number, q = BUTTERWORTH_Q_DB): BiquadFilterNode => {
     const f = ctx.createBiquadFilter();
     f.type = type;
     f.frequency.value = hz;
