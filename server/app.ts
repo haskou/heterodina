@@ -62,6 +62,8 @@ export function createApp({ plex, library, radio, tempo, artCache = new ArtCache
     if (timelineMatch && req.method === 'POST') return reportTimeline(req, res, timelineMatch[1] ?? '');
     const universeMatch = /^\/api\/radio\/universe\/([^/]+)\/albums\/([^/]+)$/.exec(path);
     if (universeMatch && req.method === 'PUT') return correctUniverse(req, res, universeMatch[1] ?? '', universeMatch[2] ?? '');
+    // A POST: each call is a fresh draw, which no browser or CDN cache may replay.
+    if (path === '/api/radio/next' && req.method === 'POST') return radioNext(req, res);
 
     if (req.method !== 'GET' && req.method !== 'HEAD') return sendJson(res, 405, { error: 'method not allowed' });
 
@@ -82,17 +84,6 @@ export function createApp({ plex, library, radio, tempo, artCache = new ArtCache
       return sendJson(res, 200, await library.search(url.searchParams.get('q') ?? '', 40, pool));
     }
 
-    if (path === '/api/radio/next') {
-      const seed = url.searchParams.get('seed') ?? '';
-      const from = url.searchParams.get('from') ?? '';
-      if (!ID.test(seed) || !ID.test(from)) return sendJson(res, 400, { error: 'bad id' });
-      const recent = (url.searchParams.get('recent') ?? '').split(',').filter((id) => ID.test(id)).slice(-200);
-      const pick = await radio.next(seed, from, recent, pool);
-      if (!pick) return sendJson(res, 404, { error: 'nothing to play' });
-      // Full track (loudness, transition profile) so the player can plan the fade.
-      const track = await library.track(pick.track.id);
-      return track ? sendJson(res, 200, { ...pick, track }) : sendJson(res, 404, { error: 'nothing to play' });
-    }
 
     if (path === '/api/suggestions') return sendJson(res, 200, await radio.suggestions(pool, playlist ?? ''));
 
@@ -134,6 +125,25 @@ export function createApp({ plex, library, radio, tempo, artCache = new ArtCache
     }
     await library.rate(id, rating as number | null);
     return sendJson(res, 200, { rating });
+  }
+
+  async function radioNext(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    let body: { seed?: unknown; from?: unknown; recent?: unknown; playlist?: unknown } | null;
+    try {
+      body = JSON.parse(await readBody(req, 16 * 1024)) as typeof body;
+    } catch {
+      return sendJson(res, 400, { error: 'bad json' });
+    }
+    const { seed, from, recent, playlist } = body ?? {};
+    if (typeof seed !== 'string' || typeof from !== 'string' || !ID.test(seed) || !ID.test(from)) return sendJson(res, 400, { error: 'bad id' });
+    if (playlist != null && (typeof playlist !== 'string' || !ID.test(playlist))) return sendJson(res, 400, { error: 'bad playlist' });
+    const recentIds = (Array.isArray(recent) ? recent : []).filter((id): id is string => typeof id === 'string' && ID.test(id)).slice(-200);
+    const pool = playlist ? await library.playlistTracks(playlist) : undefined;
+    const pick = await radio.next(seed, from, recentIds, pool);
+    if (!pick) return sendJson(res, 404, { error: 'nothing to play' });
+    // Full track (loudness, transition profile) so the player can plan the fade.
+    const track = await library.track(pick.track.id);
+    return track ? sendJson(res, 200, { ...pick, track }) : sendJson(res, 404, { error: 'nothing to play' });
   }
 
   async function reportTimeline(req: IncomingMessage, res: ServerResponse, id: string): Promise<void> {

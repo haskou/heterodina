@@ -15,13 +15,13 @@ browser ──/api──▶ server (Node) ──X-Plex-Token──▶ Plex
   - `/api/tracks/:id`: track detail with loudness and transition profile.
   - `PUT /api/tracks/:id/rating`: star rating.
   - `POST /api/tracks/:id/timeline`: playback report (`playing`, `paused`, `stopped`), forwarded to Plex's `/:/timeline` as a player called Heterodina, one per browser. It shows under Now Playing, and Plex counts the play once it passes ~90%.
-  - `/api/radio/next?seed=&from=&recent=`: next radio track.
+  - `POST /api/radio/next` with `{seed, from, recent, playlist}`: next radio track. A POST because every call is a fresh draw, which no browser or CDN cache may replay.
   - `/api/radio/context?seed=`: the radio's universe.
   - `PUT /api/radio/universe/:seedAlbum/albums/:album`: remove (`{"excluded":true}`) or add/restore an album.
   - `/api/audio/:id`: proxy for the original file, with `Range`.
   - `/api/art?u=&s=`: cover art, resized by Plex once and then served from `.cache/art`.
   - `/api/status`: whether the first index is still building, and how many tracks are analysed or waiting (the player's "processing your library" notice).
-  - Search, suggestions and radio accept `playlist=<id>` to use only that playlist's tracks.
+  - Search and suggestions accept `playlist=<id>` (radio, a `playlist` field) to use only that playlist's tracks.
 - **Token:** only sent as a header between server and Plex. Tests check that it never appears in a response.
 - **Search** (`search-index.ts`, `romaji.ts`):
   - At startup (retrying until Plex answers), and every 30 minutes after that, it loads every track and keeps each field's original text plus its romaji reading. Kanji readings come from kuromoji's dictionary.

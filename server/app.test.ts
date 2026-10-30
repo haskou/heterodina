@@ -262,3 +262,14 @@ test('rankSearch keeps Plex order within a rank', () => {
   const ranked = rankSearch([mk('Re:Morning'), mk('Morning Band'), mk('morning')], 'Morning');
   assert.deepEqual(ranked.map((t) => t.title), ['morning', 'Morning Band', 'Re:Morning']);
 });
+
+test('radio next is a POST, so no cache can replay a draw', async () => {
+  const post = (body: unknown): Promise<Response> => fetch(`${base}/api/radio/next`, { method: 'POST', body: JSON.stringify(body) });
+  const ok = await post({ seed: '1', from: '1', recent: ['1'], playlist: null });
+  assert.ok([200, 404].includes(ok.status), String(ok.status));
+  assert.equal(ok.headers.get('cache-control'), 'no-store');
+  assert.equal((await post({ seed: '../x', from: '1' })).status, 400);
+  assert.equal((await post({ seed: '1', from: '1', playlist: 'x' })).status, 400);
+  assert.equal((await fetch(`${base}/api/radio/next`, { method: 'POST', body: '{' })).status, 400);
+  assert.equal((await get('/api/radio/next?seed=1&from=1')).status, 404);
+});

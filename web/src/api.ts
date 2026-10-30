@@ -34,7 +34,12 @@ export const api = {
   },
   /** Next track of the station seeded with `seed`, after `from`, avoiding `recent`; null when nothing fits. */
   radioNext: async (seed: string, from: string, recent: string[], playlist: string | null): Promise<RadioPick | null> => {
-    const res = await fetch(`/api/radio/next?seed=${seed}&from=${from}&recent=${recent.join(',')}${within(playlist)}`);
+    // A POST, so no cache along the way can replay an earlier draw.
+    const res = await fetch('/api/radio/next', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ seed, from, recent, playlist }),
+    });
     if (res.status === 404) return null;
     if (!res.ok) throw new Error(`radio: HTTP ${res.status}`);
     return (await res.json()) as RadioPick;
